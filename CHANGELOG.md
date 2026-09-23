@@ -1,4 +1,30 @@
-﻿# Changelog
+﻿## [1.1.0] - 2026-09-23
+
+### Added
+- **Home screen** with two big actions: **EXTRACT** and **MOD & REPACK**
+- **Extract wizard** (4 steps): pick asset categories, output folder, live log, final summary
+- **Mod & Repack wizard** (5 steps): drag & drop folder, scan, review, rebuild, install/package
+- **Repack .arc** support: mod textures inside game archives and push them back
+- **Format validation**: PNG / JPG / WAV / TGA / BMP rejected with clear reason before repack
+- **Auto-backup** of `.original` .arc/.tab on first install
+- **Package for sharing**: generates mod folder with README + install.bat
+- **TOOL CHECK** panel with 5 live status checks (game, oodle, output, archives, tools)
+- Auto-refresh TOOL CHECK every 2 seconds
+- Rounded button UI in Home + wizards
+
+### Changed
+- New default entry point: **HomeForm** with wizards. Old sidebar toolkit remains available via **Advanced tools**
+- Extract wizard organizes output into `_EDITABLE\TEXTURES`, `AUDIO`, `VIDEO`, `SCRIPTS`, `UI`, `OTHER`
+
+### Fixed
+- Wizard handles blank folders gracefully
+- Rounded buttons no longer show black corners
+
+### Internal
+- TAB 3.1 parser + writer (byte-perfect roundtrip verified on game8 and game12)
+- Oodle LZ decompress + compress via `oo2core_7_win64.dll`
+- Test harness with 21 checks, all green
+# Changelog
 
 ## [1.0.0] - 2026-09-23
 

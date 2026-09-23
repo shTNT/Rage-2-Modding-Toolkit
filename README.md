@@ -18,7 +18,7 @@
 
 ## Download
 
-- **Latest Release**: [RAGE2TOOLKIT-v1.0.7z](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases/download/v1.0.0/RAGE2TOOLKIT-v1.0.7z)
+- **Latest Release**: [RAGE2TOOLKIT-v1.1.7z](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases/download/v1.1.0/RAGE2TOOLKIT-v1.1.7z)
 - **SHA-256**: `2639FF38A5422B17535FD3FCE6ED15A01CD5FF400440168E8D118F7AE3355D12`
 
 ## Documentation
@@ -31,7 +31,7 @@ Full documentation: https://shtnt.github.io/Rage-2-Modding-Toolkit/
 
 ## Installation
 
-1. Extract RAGE2TOOLKIT-v1.0.7z anywhere.
+1. Extract RAGE2TOOLKIT-v1.1.7z anywhere.
 2. Run RAGE2Toolkit.exe.
 3. Configure game path and output path.
 4. Extract, convert, modify, deploy.
@@ -107,3 +107,4 @@ single contributor could have done alone.
 ## License
 
 MIT - see [LICENSE](LICENSE). Third-party components: see [THIRD_PARTY_NOTICES.txt](THIRD_PARTY_NOTICES.txt).
+
