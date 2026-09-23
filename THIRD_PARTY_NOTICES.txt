@@ -1,0 +1,26 @@
+﻿THIRD-PARTY SOFTWARE NOTICES
+============================
+
+1. ddscConvert.exe / R2SmallArchive.exe
+   Copyright (c) 2014-2020 Lukas Cone (PredatorCZ)
+   Licensed under GNU GPL v3.0
+   Source: https://github.com/PredatorCZ/ApexToolset
+
+2. texconv.exe
+   Copyright (c) Microsoft Corporation
+   Licensed under the MIT License
+   Source: https://github.com/microsoft/DirectXTex
+
+3. Oodle (oo2core_7_win64.dll)
+   Copyright (c) RAD Game Tools / Epic Games
+   PROPRIETARY - NOT REDISTRIBUTABLE
+   This DLL is NOT included. Auto-copied from user's own RAGE 2 install.
+
+4. Filelist data (community-derived)
+
+5. RAGE2Toolkit.exe (MIT License)
+
+DISCLAIMER
+----------
+Not affiliated with Avalanche Studios or Bethesda Softworks.
+Users must own a legitimate copy of RAGE 2.

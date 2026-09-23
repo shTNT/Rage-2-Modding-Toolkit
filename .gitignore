@@ -1,0 +1,23 @@
+﻿# Config and user data
+config/
+*.json
+
+# Extraction output
+output/
+_test/
+_test_full/
+_test_release/
+_dds_roundtrip/
+
+# Temp
+*.tmp
+*.bak
+~$*
+
+# Windows
+Thumbs.db
+desktop.ini
+
+# Oodle DLL - NEVER commit
+bin/oo2core_7_win64.dll
+oo2core_7_win64.dll
