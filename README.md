@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Platform: Windows](https://img.shields.io/badge/Platform-Windows%2010%2F11-blue)](https://www.microsoft.com/windows)
-[![Version](https://img.shields.io/badge/Version-1.0.0-green)](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases)
+[![Version](https://img.shields.io/badge/Version-1.1.0-green)](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases)
 [![VirusTotal](https://img.shields.io/badge/VirusTotal-0%2F71%20clean-brightgreen)](https://www.virustotal.com/gui/file/2639ff38a5422b17535fd3fce6ed15a01cd5ff400440168e8d118f7ae3355d12)
 
 ## What it does
