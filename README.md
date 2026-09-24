@@ -29,6 +29,15 @@ Full documentation: https://shtnt.github.io/Rage-2-Modding-Toolkit/
 - **[Format Reference](docs/FORMAT_REFERENCE.md)** - .arc, .avtx, .ddsc, hashes.
 - **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues.
 
+## Filelists
+
+The hash-to-path mappings used by the toolkit are published in the [data/](data/) folder:
+
+- [filelist.txt](data/filelist.txt) - 11,714 entries (base)
+- [filelist_extra.txt](data/filelist_extra.txt) - 2,498 entries (community brute-force + manifest mining)
+- [filelist_raw.txt](data/filelist_raw.txt) - 358,057 raw paths (DECA source)
+
+Combined: 14,212 / 16,385 hashes (86.74%). Anyone can contribute new mappings by appending to filelist_extra.txt.
 ## Installation
 
 1. Extract RAGE2TOOLKIT-v1.2.7z anywhere.
