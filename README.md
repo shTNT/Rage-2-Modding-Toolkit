@@ -3,8 +3,8 @@
 ## What's new in v1.3.0 (2026-09-24)
 
 - **Supplemental universe support.** Both `archives_win64/initial` and
-  `archives_win64/supplemental` are scanned. Previously only `initial`
-  was read, missing ~23,000 additional hashes.
+  `archives_win64/supplemental` are scanned. Previous versions only
+  read the initial universe, missing ~23,000 additional hashes.
 - **Three-file filelist** — `filelist.txt` + `filelist_extra.txt` +
   `filelist_supplemental.txt`, loaded with hash-level dedup.
 - **Definitive filelist** — see [`FILELIST_DEFINITIVO/`](FILELIST_DEFINITIVO/)
@@ -19,9 +19,7 @@
 | Supplemental | 21,540 / 23,134 | 93.11% |
 | **Union** | **35,999 / 39,519** | **91.09%** |
 
-Localization strings are excluded on purpose. Including them would
-inflate the denominator to 85,258 hashes, of which only ~45,739 are
-localization — not needed for asset modding.
+Localization strings (45,739 unique hashes) are excluded on purpose.
 
 ### Hash algorithm
 
@@ -32,13 +30,13 @@ Test vector: `hash("text/master_eng.stringlookup") = 8453EE3581F31F39`
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Platform: Windows](https://img.shields.io/badge/Platform-Windows%2010%2F11-blue)](https://www.microsoft.com/windows)
-[![Version](https://img.shields.io/badge/Version-1.2.1-green)](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases)
+[![Version](https://img.shields.io/badge/Version-1.3.0-green)](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases)
 [![VirusTotal](https://img.shields.io/badge/VirusTotal-0%2F71%20clean-brightgreen)](#antivirus--smartscreen)
 
 ## What it does
 
-- **Extracts** all 13 `.arc` archives from RAGE 2 (~14,400 files in ~30 s).
-- **Identifies** files by hash using a 14,212-entry community filelist (**91.09% coverage**).
+- **Extracts** all 46 `.arc` archives (initial + supplemental) from RAGE 2 (~14,400 files in ~30 s).
+- **Identifies** files by hash using a community filelist with **91.09% coverage**.
 - **Converts** `.avtx` textures to editable `.dds`.
 - **Organizes** content by type (textures, audio, video, UI, data).
 - **Repacks** modified files back into `.arc` archives that the game loads on launch.
@@ -59,7 +57,7 @@ Full documentation: https://shtnt.github.io/Rage-2-Modding-Toolkit/
 
 ## Filelist
 
-The full hash-to-path mapping used by the toolkit is published at [data/filelist.txt](data/filelist.txt) - **14,212 entries, 91.09% coverage**.
+The full hash-to-path mapping used by the toolkit is published at [data/filelist.txt](data/filelist.txt) - **35,999 entries, 91.09% gameplay coverage**.
 
 The remaining 2,173 entries are:
 

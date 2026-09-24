@@ -31,3 +31,5 @@ _stage*/
 *.user
 # OS
 .DS_Store
+
+*.bak_v*

@@ -1,4 +1,4 @@
-﻿# Format Reference
+# Format Reference
 
 ## The .arc and .tab System
 

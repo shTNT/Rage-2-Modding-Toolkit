@@ -1,4 +1,4 @@
-﻿# How to Use the RAGE 2 Modding Toolkit
+# How to Use the RAGE 2 Modding Toolkit
 
 ## Quick Start
 

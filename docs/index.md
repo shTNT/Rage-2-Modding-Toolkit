@@ -1,33 +1,4 @@
 ---
-
-## v1.3.0 — Supplemental universe + definitive filelist
-
-Released 2026-09-24. This version adds support for the second archive
-universe (`archives_win64/supplemental`) and ships the definitive
-filelist in the repository.
-
-### Coverage (gameplay assets, no localization)
-
-| Universe | Hashes | Coverage |
-|---|---|---|
-| Initial | 14,459 / 16,385 | 88.25% |
-| Supplemental | 21,540 / 23,134 | 93.11% |
-| **Union** | **35,999 / 39,519** | **91.09%** |
-
-### New files
-
-- [`FILELIST_DEFINITIVO/filelist.txt`](FILELIST_DEFINITIVO/filelist.txt)
-  — 35,999 unique hashes, tab-separated, uppercase hex
-- [`FILELIST_DEFINITIVO/verification.txt`](FILELIST_DEFINITIVO/verification.txt)
-  — bit-a-bit re-hash report (0 mismatch, 0 ghost)
-- [`FILELIST_DEFINITIVO/methods.txt`](FILELIST_DEFINITIVO/methods.txt)
-  — every method that produced hashes, ranked by yield, plus a
-  reproducibility section
-
-### Hash algorithm
-
-MurmurHash3 x64 128-bit, seed=0, low 64 bits of h1.
-Test vector: `hash("text/master_eng.stringlookup") = 8453EE3581F31F39`
 layout: default
 title: RAGE 2 Modding Toolkit
 description: Portable GUI toolkit for extracting, editing and repacking RAGE 2 .arc archives. 91.09% filelist coverage.
@@ -37,7 +8,7 @@ description: Portable GUI toolkit for extracting, editing and repacking RAGE 2 .
 
 **A portable GUI toolkit for extracting, editing and repacking RAGE 2 assets.**
 
-Current release: [v1.3.0](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases/tag/v1.3.0) — filelist coverage **91.09%** (14,121 / 16,385 hashes).
+Current release: [v1.3.0](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases/tag/v1.3.0) — filelist coverage **91.09%** (35,999 / 39,519 hashes).
 
 [Download latest release](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases/latest){: .btn }
 
