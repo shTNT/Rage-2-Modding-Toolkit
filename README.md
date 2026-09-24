@@ -5,7 +5,7 @@
 - **Supplemental universe support.** Both `archives_win64/initial` and
   `archives_win64/supplemental` are scanned. Previous versions only
   read the initial universe, missing ~23,000 additional hashes.
-- **Three-file filelist** — `filelist.txt` + `filelist_extra.txt` +
+- Unified filelist - a single `data/filelist.txt` with 35,999 hashes. The original three sources (DECA base, initial extras, supplemental) are preserved under `data/sources/` for documentation.
   `filelist_supplemental.txt`, loaded with hash-level dedup.
 - **Most complete filelist to date** — see [`filelist/`](filelist/)
   with 35,999 unique hashes, bit-a-bit verification report, and full
