@@ -4,13 +4,13 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Platform: Windows](https://img.shields.io/badge/Platform-Windows%2010%2F11-blue)](https://www.microsoft.com/windows)
-[![Version](https://img.shields.io/badge/Version-1.2.0-green)](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases)
+[![Version](https://img.shields.io/badge/Version-1.2.1-green)](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases)
 [![VirusTotal](https://img.shields.io/badge/VirusTotal-0%2F71%20clean-brightgreen)](#antivirus--smartscreen)
 
 ## What it does
 
 - **Extracts** all 13 `.arc` archives from RAGE 2 (~14,400 files in ~30 s).
-- **Identifies** files by hash using a 358,057-line community filelist (~86.2% coverage).
+- **Identifies** files by hash using a 14,212-entry community filelist (**86.74% coverage**).
 - **Converts** `.avtx` textures to editable `.dds`.
 - **Organizes** content by type (textures, audio, video, UI, data).
 - **Repacks** modified files back into `.arc` archives that the game loads on launch.
@@ -18,8 +18,8 @@
 
 ## Download
 
-- **Latest Release**: [RAGE2TOOLKIT-v1.2.7z](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases/download/v1.2.0/RAGE2TOOLKIT-v1.2.7z)
-- **SHA-256**: `F5D9F8E1F45FABB2655B70FC055801ABA3EE26CEA0CE495163C73A11825FFF86`
+- **Latest Release**: [RAGE2TOOLKIT-v1.2.1.7z](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases)
+- **SHA-256**: listed on the release page.
 
 ## Documentation
 
@@ -29,18 +29,24 @@ Full documentation: https://shtnt.github.io/Rage-2-Modding-Toolkit/
 - **[Format Reference](docs/FORMAT_REFERENCE.md)** - .arc, .avtx, .ddsc, hashes.
 - **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues.
 
-## Filelists
+## Filelist
 
-The hash-to-path mappings used by the toolkit are published in the [data/](data/) folder:
+The full hash-to-path mapping used by the toolkit is published at [data/filelist.txt](data/filelist.txt) - **14,212 entries, 86.74% coverage**.
 
-- [filelist.txt](data/filelist.txt) - 11,714 entries (base)
-- [filelist_extra.txt](data/filelist_extra.txt) - 2,498 entries (community brute-force + manifest mining)
-- [filelist_raw.txt](data/filelist_raw.txt) - 358,057 raw paths (DECA source)
+The remaining 2,173 entries are:
 
-Combined: 14,212 / 16,385 hashes (86.74%). Anyone can contribute new mappings by appending to filelist_extra.txt.
+- ~1,449 engine placeholders (byte-identical payloads, no textual path by design)
+- ~116 CFX (proprietary Avalanche UI format)
+- ~63 OggS audio (Vorbis, no metadata)
+- ~7 RTPC manifest containers
+- ~199 Oodle variant failures
+- ~340 AVTX textures without public path names
+
+Anyone can contribute new mappings by appending to `data/filelist.txt` (one per line, tab-separated).
+
 ## Installation
 
-1. Extract RAGE2TOOLKIT-v1.2.7z anywhere.
+1. Extract RAGE2TOOLKIT-v1.2.1.7z anywhere.
 2. Run RAGE2Toolkit.exe.
 3. Configure game path and output path.
 4. Extract, convert, modify, deploy.
@@ -61,7 +67,7 @@ Note: modified files are written uncompressed (Oodle re-compression planned for 
 
 - This toolkit does NOT include game assets. You need your own copy of RAGE 2.
 - The Oodle DLL is NOT redistributed. It is auto-copied from your game folder.
-- ~14% of entries remain hash-named (mostly engine placeholders and debug assets without public path names).
+- ~13% of entries remain hash-named (mostly engine placeholders and debug assets without public path names).
 
 ## Antivirus / SmartScreen
 
@@ -80,16 +86,16 @@ If Windows SmartScreen shows a warning, click More info then Run anyway.
 
 This toolkit would not exist without the work of others. Where the credit is due:
 
-### DECA project — file list and format documentation
+### DECA project - file list and format documentation
 
 The DECA project is the reason extracted files have names at all. Two of their
 contributions are load-bearing for this toolkit:
 
-- **`resources/deca/rg2/filelist.txt`** (358,057 entries) — the raw path database
+- **`resources/deca/rg2/filelist.txt`** (358,057 entries) - the raw path database
   used to reverse MurmurHash3 hashes back to real file names. Without this,
   100% of extracted files would be named `4A3F8C12D5E9B7A1.avtx` style.
-  It is what makes the 86.2% coverage possible.
-- **`python/deca/deca/ff_arc_tab.py`** — a reference parser for the TAB v3.1
+  It is what makes the 86.74% coverage possible.
+- **`python/deca/deca/ff_arc_tab.py`** - a reference parser for the TAB v3.1
   format. This is the file that documented the multi-block compression layout
   used by RAGE 2 archives. Without studying this parser, we would not have known
   how files spanning multiple compression blocks are reassembled. The multi-block
@@ -101,15 +107,15 @@ A significant portion of this toolkit's functionality is derived from DECA's
 reverse engineering work. Any questions about the archive format itself should
 go their way first.
 
-### PredatorCZ (Lukas Cone) — ApexToolset
+### PredatorCZ (Lukas Cone) - ApexToolset
 
-- **`ddscConvert.exe`** — converts `.avtx` textures to/from `.dds`. GPL v3.
-- **`R2SmallArchive.exe`** — extracts mini-archives (.bl, .ee, .nl, .fl). GPL v3.
+- **`ddscConvert.exe`** - converts `.avtx` textures to/from `.dds`. GPL v3.
+- **`R2SmallArchive.exe`** - extracts mini-archives (.bl, .ee, .nl, .fl). GPL v3.
 - Source: https://github.com/PredatorCZ/ApexToolset
 
-### Microsoft — DirectXTex
+### Microsoft - DirectXTex
 
-- **`texconv.exe`** — DDS format conversion and mipmap regeneration. MIT.
+- **`texconv.exe`** - DDS format conversion and mipmap regeneration. MIT.
 - Source: https://github.com/microsoft/DirectXTex
 
 ### RAGE 2 modding community
@@ -120,4 +126,3 @@ single contributor could have done alone.
 ## License
 
 MIT - see [LICENSE](LICENSE). Third-party components: see [THIRD_PARTY_NOTICES.txt](THIRD_PARTY_NOTICES.txt).
-
