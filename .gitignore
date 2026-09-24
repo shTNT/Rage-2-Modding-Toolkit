@@ -33,3 +33,5 @@ _stage*/
 .DS_Store
 
 *.bak_v*
+src/bin/
+src/obj/

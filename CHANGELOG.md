@@ -1,5 +1,13 @@
 # CHANGELOG — RAGE2Toolkit
 
+## [1.3.1] - 2026-09-24
+
+### Changed
+- Toolkit loads a single unified `data/filelist.txt` (35,999 hashes)
+  instead of three separate files.
+- Original sources preserved under `data/sources/` for documentation.
+
+
 ## [1.3.0] - 2026-09-24
 
 ### Added
@@ -26,5 +34,6 @@
 ### Hash algorithm
 - MurmurHash3 x64 128-bit, seed=0, low 64 bits of h1.
 - Test vector: hash("text/master_eng.stringlookup") = 8453EE3581F31F39
+
 
 

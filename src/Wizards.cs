@@ -1041,69 +1041,31 @@ namespace Rage2Toolkit
         {
             try
             {
-                string[] candidates = {
-                    Path.Combine(Paths.DataDir, "filelist.txt"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data", "filelist.txt")
-                };
-                bool loadedBase = false;
-                foreach (var c in candidates)
+                string[] candidates = new string[]
                 {
-                    if (!File.Exists(c)) continue;
-                    foreach (var line in File.ReadAllLines(c))
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data", "filelist.txt"),
+                    Path.Combine(Paths.DataDir, "filelist.txt")
+                };
+                bool loaded = false;
+                foreach (string p in candidates)
+                {
+                    if (!File.Exists(p)) continue;
+                    foreach (string line in File.ReadAllLines(p))
                     {
                         if (string.IsNullOrWhiteSpace(line)) continue;
-                        var parts = line.Split(new[] { '\t', ' ' }, 2);
+                        string[] parts = line.Split(new char[] { '\t' }, 2);
                         if (parts.Length < 2) continue;
                         ulong h;
-                        if (!ulong.TryParse(parts[0], System.Globalization.NumberStyles.HexNumber,
-                            System.Globalization.CultureInfo.InvariantCulture, out h)) continue;
+                        if (!ulong.TryParse(parts[0], System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out h)) continue;
                         namesByHash[h] = parts[1].Trim();
                     }
-                    loadedBase = true;
+                    Log("Filelist: " + namesByHash.Count + " entries loaded from " + p);
+                    loaded = true;
                     break;
                 }
-
-                string[] extraCandidates = {
-                    Path.Combine(Paths.DataDir, "filelist_extra.txt"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data", "filelist_extra.txt")
-                };
-                foreach (var c in extraCandidates)
-                {
-                    if (!File.Exists(c)) continue;
-                    foreach (var line in File.ReadAllLines(c))
-                    {
-                        if (string.IsNullOrWhiteSpace(line)) continue;
-                        var parts = line.Split(new[] { '\t', '|', '=', ';' }, 2);
-                        if (parts.Length < 2) continue;
-                        ulong h;
-                        if (!ulong.TryParse(parts[0], System.Globalization.NumberStyles.HexNumber,
-                            System.Globalization.CultureInfo.InvariantCulture, out h)) continue;
-                        namesByHash[h] = parts[1].Trim();
-                    }
-                    break;
-                }
-
-                string[] suppCandidates = {
-                    Path.Combine(Paths.DataDir, "filelist_supplemental.txt"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data", "filelist_supplemental.txt")
-                };
-                foreach (var c in suppCandidates)
-                {
-                    if (!File.Exists(c)) continue;
-                    foreach (var line in File.ReadAllLines(c))
-                    {
-                        if (string.IsNullOrWhiteSpace(line)) continue;
-                        var parts = line.Split(new[] { '\t', '|', '=', ';' }, 2);
-                        if (parts.Length < 2) continue;
-                        ulong h;
-                        if (!ulong.TryParse(parts[0], System.Globalization.NumberStyles.HexNumber,
-                            System.Globalization.CultureInfo.InvariantCulture, out h)) continue;
-                        namesByHash[h] = parts[1].Trim();
-                    }
-                    break;
-                }
+                if (!loaded) Log("Filelist not found - hashes will be shown without names");
             }
-            catch { }
+            catch (Exception ex) { Log("Filelist error: " + ex.Message); }
         }
 
         void LoadArcIndex()
