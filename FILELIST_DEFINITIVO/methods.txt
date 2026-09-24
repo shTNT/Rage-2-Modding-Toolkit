@@ -1,0 +1,524 @@
+================================================================================
+RAGE 2 - DEFINITIVE FILELIST
+Documentation of methods, cross-references, and brute-force approaches
+================================================================================
+
+Version: 1.2
+Date: 2026-09-24
+Author: Kry0genik
+Repository: github.com/shTNT/Rage-2-Modding-Toolkit
+License: CC0 1.0 Universal (public domain)
+
+================================================================================
+TABLE OF CONTENTS
+================================================================================
+
+  1. Hash algorithm specification
+  2. Game structure and universes
+  3. Filelist format
+  4. Methods that worked
+  5. Methods that did not work
+  6. Reproducibility - how to recreate the filelist
+  7. Negative findings / warnings
+  8. Timeline of discovery
+  9. Credits and sources
+ 10. Legal
+
+================================================================================
+1. HASH ALGORITHM SPECIFICATION
+================================================================================
+
+RAGE 2 identifies assets with 64-bit hashes derived from path strings.
+
+Algorithm:      MurmurHash3 x64 128-bit
+Input:          path in UTF-8, lowercase, forward slashes, no prefix
+Seed:           0
+Output used:    h1 (first 64-bit word of the 128-bit digest)
+
+Verified test vectors:
+
+    text/master_eng.stringlookup                                -> 8453EE3581F31F39
+    ai/tiles/43_37.navmeshc                                     -> E73A9076A24B7E8D
+    terrain/heatwave/patches/width_8/patch_11_00_00.streampatch -> 95C8093796E2DD75
+
+CRITICAL WARNING: The MurmurHash3 variant used by RAGE 2 returns h1
+(first 64-bit word) with seed=0. Implementations that use h2, or that
+XOR the two halves of the digest, produce 0 matches.
+
+If your hasher gives 0 matches after 1000 attempts, verify with the
+test vectors above before assuming your paths are wrong.
+
+================================================================================
+2. GAME STRUCTURE AND UNIVERSES
+================================================================================
+
+The game ships with TWO complementary archive directories:
+
+    archives_win64/initial/       13 .arc + 13 .tab  (base game, 16,385 hashes)
+    archives_win64/supplemental/  33 .arc + 33 .tab  (DLC, 23,134 hashes)
+
+    OVERLAP between universes: 0 hashes
+    UNION: 39,519 unique gameplay hashes
+
+There is also a separate localization tree:
+
+    languages/<locale>/game0.tab   3,113 to 37,844 hashes per locale
+    Total localization hashes:     45,739
+
+LOCALIZATION IS NOT INCLUDED in this filelist. Reporting coverage that
+includes locales inflates the denominator by 2.16x and is misleading
+for asset modding purposes.
+
+================================================================================
+3. FILELIST FORMAT
+================================================================================
+
+Tab-separated format:
+
+    <HEX16>\t<path>
+
+    HEX16 = 16-character uppercase hexadecimal hash
+    path  = asset path as understood by the game engine
+
+Example lines:
+
+    8453EE3581F31F39    text/master_eng.stringlookup
+    E73A9076A24B7E8D    ai/tiles/43_37.navmeshc
+
+UTF-8 without BOM, LF line endings.
+
+================================================================================
+4. METHODS THAT WORKED
+================================================================================
+
+Ranked by yield. Yields are additive per method; some overlap exists.
+Final unique total: 35,999 hashes.
+
+   4.0  Supplemental universe discovery                    23,134 hashes
+        The second universe of .arc archives was found and opened.
+
+   4.1  Cross-reference with DECA raw filelist              22,575 hashes
+        Hash every path in the community 358,057-line raw list.
+        (Includes MasterBrute phase B: 1,786 in initial,
+         and SuppxMerge: 20,789 in supplemental.)
+
+   4.2  Extension swap                                          535 hashes
+        Replace each path extension with every other known ext.
+
+   4.3  Numeric mutations                                       311 hashes
+        For each numeric segment, try +/-N preserving padding.
+
+   4.4  CFX/GFX Scaleform forensic analysis                     224 hashes
+        Extract asset paths from compressed Flash/Scaleform modules.
+
+   4.5  Family expansion                                        129 hashes
+        Detect <prefix><num><suffix> templates and expand around.
+
+   4.6  StringLookup sibling discovery                          109 hashes
+        For each recovered .ddsc, try the .gfx sibling.
+
+   4.7  Contextual neighborhood                                 102 hashes
+        Use alphabetical .tab neighbors to infer orphan families.
+
+   4.8  Grinder iterations                                       62 hashes
+        Multi-iteration sweeps (world map, vehicles, videos, LOD,
+        character parts, savedgame, credits, DLC packages).
+
+   4.9  Prefix brute (MasterBrute phase A)                       49 hashes
+        Neighborhood-derived prefix expansion on initial universe.
+
+  4.10  HeatwaveExpand terrain sweep                            48 hashes
+        Massive terrain patch sweep on the heatwave cluster.
+
+  4.11  Torrent cross-reference                                  36 hashes
+        Hash path strings from the rage-2-archive torrent dump.
+        Also yielded 70,786 confirmations of existing hashes.
+
+  4.12  Bit-level mmap scan                                      17 hashes
+        Byte-level search of extracted binaries for orphan hashes
+        with byte-mutation layers.
+
+  4.13  ADF name hunt                                            15 hashes
+        Extract "<name>.adf in <system>" patterns from orphan
+        .adf files and reconstruct candidate paths.
+
+  4.14  B595 Ghidra string mining                                11 hashes
+        Hash strings extracted by a third-party Ghidra dump.
+
+  4.15  MegaPool string dump                                      7 hashes
+        Dump strings from EXE+DLL+ADF+EE+BL+FL+NL+TAG+BAN+GFX+BIN.
+        (Initial run was contaminated by the '|' prefix bug; the 7
+         surviving matches are all confirmed by re-hash.)
+
+  4.16  DLC2 FMOD + cross-orphan manifest                         6 hashes
+        Read audio bank manifests and orphan .adf manifests.
+
+  4.17  Forensic orphan analysis                                  6 hashes
+        Extract strings from .adf/.rtpc/.world/.ee/.bl/.fl/.nl/
+        .graphc/.stringlookup files. 4,878 files, 595 MB read,
+        515 direct hits, 6 net new after dedup.
+
+  4.18  Families deep (support items / variants)                  5 hashes
+        Targeted mutation of specific item families.
+
+  4.19  Templates from RAGE2.exe                                  3 hashes
+        Expand engine format strings (127 templates, 11 with real
+        asset extensions) with known vocabulary.
+
+  4.20  GFX decompression (tab_info.ddsc)                         1 hash
+        Decompress resolved .gfx modules and extract stray asset
+        references not covered by the .ddsc sibling pass.
+
+  BASE (from initial DECA filelist)                          11,714 hashes
+
+================================================================================================================================================================
+5. METHODS THAT DID NOT WORK
+================================================================================
+
+   5.1  Binary scan of extracted assets                         0 hits
+        4,878 files, 595 MB scanned for raw uint64 hashes.
+
+   5.2  Torrent mining beyond cross-reference                   0 new
+        345,556 paths tested, all already known.
+
+   5.3  Terrain patches brute-force                             0 hits
+        41 biomas x 12 widths x 64x64x16 = 1.37 billion candidates.
+
+   5.4  String mining from RAGE2.exe                            0 new
+        101,695 strings extracted, 137 path-like, all known.
+
+   5.5  RTTI analysis via Ghidra                                0 new
+        8,112 symbols, 882 relevant, none produced paths.
+
+   5.6  JPEXS ABC decompilation                                 0 new
+        5,564 ActionScript files from 114 CFX modules.
+
+   5.7  RTPC prefix analysis                                    0 matches
+        5 orphan RTPC files, tested CRC32/FNV/DJB2/Adler32.
+
+   5.8  Path normalization attacks                               0 new
+        lowercase / UPPERCASE / Capitalize / backslash swaps.
+
+   5.9  Novel extensions from RAGE2.exe                          0 hits
+        671 novel "extensions", 16.8 million candidates tested.
+
+  5.10  Dropzone testing (ProcMon)                              0 change
+        136 magenta textures deployed via dropzone. Confirmed:
+        dropzone does NOT override weapon/decals/terrain/skins.
+        Only climate/dialogue/dummies/shaders/encounters.
+
+  5.11  Combined sprint sweep (84.9M candidates)                 0 hits
+        Cross-ext novel, cross-ext known, terrain x biomas,
+        climate zones, atmosphere tables. All exhausted.
+
+  5.12  Ghidra call graph from murmur function                   0 paths
+        187 functions reachable, 297 strings, none hasheable.
+
+  5.13  Additional methods tested with 0 hits:
+        - 4-byte RTPC prefix reverse engineering
+        - 32/32 bit split hash scan
+        - .tab block cohort purity analysis
+        - cross-archive SHA256 collision scan
+        - placeholder_N / fallback_N / dummy_N indexed sweep
+        - AVTX orphan string mining (118,408 strings)
+        - Load screen names massive sweep
+        - UTF-16 exe string extraction (116 found, 0 paths)
+        - Game folder config scan (0 configs found)
+
+================================================================================
+6. REPRODUCIBILITY - HOW TO RECREATE THE FILELIST
+================================================================================
+
+Every method above was implemented as a C# tool built with .NET 8 SDK.
+All tools are open-source and available in the toolkit repository.
+This section documents each one so the process can be reproduced or
+verified independently.
+
+--- 6.0 REQUIREMENTS ---
+
+  .NET 8 SDK              (winget install Microsoft.DotNet.SDK.8)
+  RAGE 2 game installation with .arc files intact
+  DECA filelist_raw.txt   (github.com/kk49/deca, 358,057 paths)
+  oo2core_7_win64.dll     (from your own game install, NOT redistributable)
+
+--- 6.1 TOOL CROSS-REFERENCE TABLE ---
+
+  Method                          Tool / executable
+  ------------------------------  --------------------------------
+  4.0  Supplemental universe      (filesystem listing, no tool)
+  4.1  DECA cross-reference       MasterBrute.exe, SuppxMerge.exe
+  4.2  Extension swap             MasterBruteV3.exe, Sprint3.exe
+  4.3  Numeric mutations          Sprint6.exe, Sprint7.exe
+  4.4  CFX/GFX forensic           CfxFinal.exe, PhotoModeHunt.exe,
+                                   GfxFinal.exe
+  4.5  Family expansion           FamilyExpandBig.exe, HeatwaveExpand.exe
+  4.6  StringLookup siblings      StringLookupHunt.exe
+  4.7  Contextual neighborhood    PrefixBruteV2.exe, Sprint5.exe
+  4.8  Grinder iterations         Grinder.exe, Grinder2.exe
+  4.9  Torrent cross-reference    TorrentCross.exe v1-v4
+  4.10 Bit-level mmap scan        DefinitiveBruteV3/V4/V5.exe
+  4.11 B595 Ghidra strings        B595Mine.exe
+  4.12 DLC2 FMOD manifests        DlcHunter.exe, CrossOrphanManifest.exe
+  4.13 Forensic orphan analysis   F3.exe
+  4.14 Families deep              FamiliesDeep.exe
+  4.15 RAGE2.exe templates        (see section 6.4)
+
+--- 6.2 COMMON TOOL STRUCTURE ---
+
+  Every tool is a standalone C# project with the same skeleton:
+
+    - Reads one or more filelists into a HashSet<ulong> for O(1) lookup
+    - Reads the game's .tab files to build the orphan set
+    - Runs a self-test: hash("text/master_eng.stringlookup") must equal
+      8453EE3581F31F39
+    - Generates candidates according to its strategy
+    - Uses Parallel.ForEach with Environment.ProcessorCount threads
+    - Writes matches to an output file
+    - Merges results with existing filelist (dedup by hash)
+
+  All tools use the same Murmur3 implementation: MurmurHash3_x64_128
+  with seed=0, taking the low 64 bits of h1.
+
+--- 6.3 MASTERBRUTE - THE WORKHORSE ---
+
+  MasterBrute.exe <tabDir> <filelist> <texturasFull> <rawPaths> <output>
+
+  Phase A: prefix brute (uses neighborhood from filelist)
+  Phase B: hash every line of DECA filelist_raw.txt directly
+  Phase C: suffix mutation on all known paths
+
+  MasterBruteV3.exe runs 11 fixed iterations in sequence with merge:
+    1. identity (raw direct)
+    2. lowercase
+    3. CapitalizeFirst
+    4. CapitalizeTokens
+    5. UPPERCASE
+    6. numbers 0..999
+    7. extension swap (284 matches - biggest single win)
+    8. suffix sweep
+    9. suffix+numbers
+   10. lowercase + numbers
+   11. ext swap + suffix sweep
+
+  Iteration 7 alone produced 284 hashes. This was the reason iteration
+  exists: the community filelist sometimes has paths with the wrong
+  extension.
+
+--- 6.4 RAGE2.EXE TEMPLATE EXTRACTION ---
+
+  Script (PowerShell + .NET) that:
+    1. Reads RAGE2.exe into memory
+    2. Extracts all ASCII strings >= 6 chars
+    3. Filters for strings containing "/" and "%" (format templates)
+    4. For each template, replaces %s with known biomas/dirs/assets
+       and %d/%02d with numeric ranges
+    5. Hashes each generated path against the orphan set
+
+  Templates found: 127, of which 11 have real asset extensions.
+  Limited by the fact that only 1 biome ("heatwave") is known.
+
+  Key templates:
+    %s/patch_%02d_%02d_%02d.streampatch
+    %s/zone_%d/vegetation_%d.bl
+    ai/tiles/%d_%d.navmeshc
+    textures/atmosphere/tables/irradiance_%s.ddsc
+    textures/ui/world_map%s/worldmap_zoom%d/%d.ddsc
+
+--- 6.5 CFX/GFX SCALEFORM PARSER ---
+
+  CFX file format (magic 43 46 58 1F = "CFX\x1F"):
+    offset 0x00: magic (4 bytes)
+    offset 0x04: u32 uncompressed_size
+    offset 0x08: zlib stream
+
+  Parsing algorithm:
+    1. Read file, verify magic (0x1F584643 little-endian)
+    2. Skip 8-byte header
+    3. Decompress remaining bytes as zlib (DeflateStream)
+    4. Scan decompressed bytes for printable strings
+    5. Filter for strings containing "resources\\ui;" (Perforce paths)
+    6. Extract asset references ending in .tgaD (Flash-side name)
+    7. Replace .tgaD with .ddsc and hash
+
+  The Perforce paths reveal the original source tree layout:
+    D:\Perforce\r2\branch\main\resources\ui;
+    {family_code}\{subdir}\{file}.as
+
+  Correct magic is 0x1F (Unit Separator), not 0x20 (space).
+  Using the wrong magic byte was the source of a long false-negative
+  period before the fix.
+
+--- 6.6 CONTEXTUAL NEIGHBORHOOD ALGORITHM ---
+
+  For each orphan hash in a .tab file:
+    1. Find its position in the sorted entry table
+    2. Read the 4 neighboring entries (2 before, 2 after)
+    3. Extract the directory prefix common to the neighbors
+    4. Extract the basename pattern (strip the numeric suffix)
+    5. Generate candidates: prefix + common_basename + N + suffix
+    6. Hash each candidate
+
+  Rationale: .tab entries are stored in alphabetical order (with some
+  exceptions in the multi-block layout), so an orphan between two known
+  paths of the same family is statistically likely to belong to that
+  family.
+
+  PrefixBruteV2 (51 hashes, 9% holdout validation)
+  Sprint5 (51 hashes)
+
+--- 6.7 NUMBER-IN-PATH ALGORITHM ---
+
+  For each known path, find every numeric segment:
+    Example: terrain/heatwave/patches/width_8/patch_11_00_00.streampatch
+    Numbers: 8, 11, 00, 00
+
+  For each number position, generate variants:
+    - +/- 100 keeping the original padding (D2 stays D2)
+    - +/- 999 with variable padding (D1, D2, D3, D4)
+    - 0..9999 with D2 or D4
+    - Double mutation: two numbers at once, +/- 30 each
+
+  Sprint6 phase B produced 282 hashes from this alone.
+  Sprint7 phase 2d added 28 more with the double mutation.
+
+--- 6.8 VERIFICATION SCRIPT ---
+
+  The bit-a-bit verification script re-hashes every path in the final
+  filelist and checks membership in the .tab files:
+
+    1. For each line "HASH\tPATH":
+       - recompute MurmurHash3_x64_128(PATH, seed=0)
+       - compare to HASH
+    2. Look up HASH in initSet (all hashes from initial .tab files)
+       and suppSet (all hashes from supplemental .tab files)
+    3. Report OK / mismatch / ghost counts
+
+  Current result: 35,999/35,999 OK, 0 mismatch, 0 ghost.
+
+--- 6.9 MERGE ORDER ---
+
+  Final merge order (later files override earlier):
+
+    1. filelist.txt        (initial, 11,714 entries)
+    2. filelist_extra.txt  (initial extras, 2,745 entries)
+    3. filelist_supplemental.txt (supplemental, 21,540 entries)
+
+  Dedup is by HASH, not by PATH. The first-seen path for a given hash
+  is kept.
+
+================================================================================
+7. NEGATIVE FINDINGS / WARNINGS
+================================================================================
+
+- The DECA filelist sometimes has paths prefixed with '|'. Always strip
+  the prefix or split by [\t| = ;] before hashing. Including the prefix
+  has historically caused 0-match runs even for paths that should match.
+
+- The .tab file format (RAGE 2 build 3.1):
+      offset 0x00: magic 0x00424154 ('TAB\0')
+      offset 0x04: u16 major (3)
+      offset 0x06: u16 minor (1)
+      offset 0x08: u32 alignment (0x1000)
+      offset 0x0C: u32 file_count
+      offset 0x10: u32 block_count
+      offset 0x14: u32 padding (0)
+      offset 0x18: u32 max_compressed_block_size
+      offset 0x1C: u32 uncompressed_block_size
+      Entry table starts at 0x20 + block_count * 8
+      Each entry: 24 bytes
+        u64 hash | u32 offset | u32 csize | u32 usize | u16 bIdx | u8 ctype | u8 cflags
+
+  Some third-party parsers assume file_count at 0x1C - this returns 0
+  and produces no output.
+
+- Aliases: the same hash can map to multiple paths. Always dedupe by
+  HASH, not by PATH, when computing coverage statistics.
+
+- The game has TWO complementary universes (initial + supplemental)
+  with ZERO overlap. Tools that only read initial miss 23,134 hashes.
+
+- Localization strings (45,739 unique hashes) are in a separate tree.
+  Reporting "coverage" including them doubles the denominator.
+
+- Oodle v7 (oo2core_7_win64.dll) is required to decompress most
+  blocks. It is NOT redistributable. Copy from your own game install.
+
+- Scaleform CFX magic is "CFX\x1F" (byte 0x1F), NOT "CFX " (space
+  0x20). The wrong magic cost several days of false negatives.
+
+- Windows PowerShell 5.1 cannot compare hex literals greater than
+  0x7FFFFFFFFFFFFFFF. Use .ToString('X16') and string comparison.
+
+- Visual Studio Build Tools is only needed for compiling native C++
+  hooks. The toolkit itself, the .NET tools, and the Ghidra scripts
+  do not require it.
+
+================================================================================
+8. TIMELINE OF DISCOVERY
+================================================================================
+
+2026-09-22  Phase 1: Initial extraction. 14,443 files. 81% named with
+                     DECA filelist (11,714 / 14,443).
+2026-09-23  Phase 2: Dropzone exhaustive testing. Conclusion: doesn't
+                     work for texture overrides.
+2026-09-23  Phase 3: First successful .arc repack. Rifle modified,
+                     loaded in-game. Historical first public repack.
+2026-09-23  Phase 4: MasterBrute + MasterBruteV3. +2,120 hashes.
+                     Discovery: filelist prefix bug was silently
+                     preventing all previous brute-force attempts.
+2026-09-24  Phase 5: Grinder, TorrentCross, TerraBrute. +98 hashes.
+                     TerraBrute dead end (1.37B candidates, 0 hits).
+2026-09-24  Phase 6: Discovery of archives_win64/supplemental.
+                     Cross-reference with DECA yields +20,789 hashes.
+2026-09-24  Phase 7: CFX/GFX Scaleform forensic. +224 hashes from
+                     photo_mode_ui_objects. StringLookup siblings +109.
+2026-09-24  Phase 8: Sprint3-10. Cross-ext, basename swap,
+                     number-in-path. +745 hashes.
+2026-09-24  Phase 9: Reclassification, bit-a-bit verification,
+                     Ghidra murmur confirmation, toolkit patch for
+                     supplemental, SprintBig (84M candidates, 0 hits),
+                     Ghidra call graph (no paths), forensic ADF (+6 net).
+                     FINAL: 91.09% union (gameplay, no localization).
+
+================================================================================
+9. CREDITS AND SOURCES
+================================================================================
+
+Source data:
+  - DECA project (filelist.txt + ff_arc_tab.py reference parser)
+    https://github.com/kk49/deca
+  - PredatorCZ / ApexToolset (ddscConvert, R2SmallArchive)
+    https://github.com/PredatorCZ/ApexToolset
+  - Microsoft DirectXTex (texconv)
+    https://github.com/microsoft/DirectXTex
+  - rage-2-archive torrent (glTF model dump)
+    https://archive.org/details/rage-2-archive
+
+Toolkit:
+  - RAGE 2 Modding Toolkit by Kry0genik
+    https://github.com/shTNT/Rage-2-Modding-Toolkit
+  - Built with .NET 8, Ghidra 11.3.2, custom brute-force tooling
+
+Community:
+  - DECA Discord (invite link in repository README)
+  - RAGE 2 modding community on Reddit r/RAGE2
+
+================================================================================
+10. LEGAL
+================================================================================
+
+This filelist is provided as-is for interoperability and modding
+purposes. It contains no copyrighted game assets - only hashes and
+path strings, which are functional identifiers.
+
+License: CC0 1.0 Universal (public domain dedication).
+You are free to use, copy, modify, and distribute this filelist
+without restriction.
+
+The RAGE 2 Modding Toolkit is unofficial and not affiliated with
+Avalanche Studios, Bethesda Softworks, or RAD Game Tools. All
+trademarks belong to their respective owners.
+
+================================================================================
+END OF DOCUMENT
+================================================================================

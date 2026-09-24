@@ -1,11 +1,30 @@
 # CHANGELOG — RAGE2Toolkit
 
-## v1.2.1 — 2026-09-24
+## [1.3.0] - 2026-09-24
 
-- **Filelist coverage: 86.74%** (14212 / 16385 hashes)
-- filelist_extra.txt: 2498 entries
-- Cross-orphan manifest mining recovered DLC2 FMOD bank references
-- DLC2 (TerrorMania) family completed: skeletons, bone_towers, creepy_hut + sbankc companions
-- Forensic analysis documented: 1,449 engine placeholders are irreducible
-- No PDB, no gt0c/GARC, no hash→path table in executable
-- Practical static-analysis ceiling reached
+### Added
+- Supplemental universe support: toolkit enumerates both
+  `archives_win64/initial` and `archives_win64/supplemental`.
+- Three-file filelist loading: `filelist.txt`, `filelist_extra.txt`,
+  `filelist_supplemental.txt`.
+- `FILELIST_DEFINITIVO/` folder:
+  - `filelist.txt` — 35,999 unique hashes (91.09% gameplay coverage)
+  - `verification.txt` — bit-a-bit re-hash report (0 mismatch, 0 ghost)
+  - `methods.txt` — documentation of every method that produced hashes
+- Release artifact `RAGE2TOOLKIT-v1.3.0.7z` + `.sha256`.
+
+### Changed
+- `LoadFilelist` now reads `filelist_supplemental.txt`.
+- Extraction wizard walks both archive universes.
+- Repack wizard can target any `.arc` in either universe.
+
+### Coverage
+- Initial:      88.25% (14,459 / 16,385)
+- Supplemental: 93.11% (21,540 / 23,134)
+- Union:        91.09% (35,999 / 39,519)
+
+### Hash algorithm
+- MurmurHash3 x64 128-bit, seed=0, low 64 bits of h1.
+- Test vector: hash("text/master_eng.stringlookup") = 8453EE3581F31F39
+
+
