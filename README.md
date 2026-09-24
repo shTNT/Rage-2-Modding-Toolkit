@@ -1,25 +1,25 @@
-﻿# RAGE 2 Modding Toolkit
+# RAGE 2 Modding Toolkit
 
 > Extract, convert, organize and deploy modded assets for RAGE 2.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Platform: Windows](https://img.shields.io/badge/Platform-Windows%2010%2F11-blue)](https://www.microsoft.com/windows)
-[![Version](https://img.shields.io/badge/Version-1.1.0-green)](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases)
-[![VirusTotal](https://img.shields.io/badge/VirusTotal-0%2F71%20clean-brightgreen)](https://www.virustotal.com/gui/file/2639ff38a5422b17535fd3fce6ed15a01cd5ff400440168e8d118f7ae3355d12)
+[![Version](https://img.shields.io/badge/Version-1.2.0-green)](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases)
+[![VirusTotal](https://img.shields.io/badge/VirusTotal-0%2F71%20clean-brightgreen)](#antivirus--smartscreen)
 
 ## What it does
 
 - **Extracts** all 13 `.arc` archives from RAGE 2 (~14,400 files in ~30 s).
-- **Identifies** files by hash using a 358,057-line community filelist (~81% coverage).
+- **Identifies** files by hash using a 358,057-line community filelist (~86.2% coverage).
 - **Converts** `.avtx` textures to editable `.dds`.
 - **Organizes** content by type (textures, audio, video, UI, data).
-- **Deploys** modded files to `dropzone\` for loose-file loading.
+- **Repacks** modified files back into `.arc` archives that the game loads on launch.
 - **Auto-detects** and copies the required Oodle runtime from your own RAGE 2 install.
 
 ## Download
 
-- **Latest Release**: [RAGE2TOOLKIT-v1.1.7z](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases/download/v1.1.0/RAGE2TOOLKIT-v1.1.7z)
-- **SHA-256**: `2639FF38A5422B17535FD3FCE6ED15A01CD5FF400440168E8D118F7AE3355D12`
+- **Latest Release**: [RAGE2TOOLKIT-v1.2.7z](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases/download/v1.2.0/RAGE2TOOLKIT-v1.2.7z)
+- **SHA-256**: `F5D9F8E1F45FABB2655B70FC055801ABA3EE26CEA0CE495163C73A11825FFF86`
 
 ## Documentation
 
@@ -31,7 +31,7 @@ Full documentation: https://shtnt.github.io/Rage-2-Modding-Toolkit/
 
 ## Installation
 
-1. Extract RAGE2TOOLKIT-v1.1.7z anywhere.
+1. Extract RAGE2TOOLKIT-v1.2.7z anywhere.
 2. Run RAGE2Toolkit.exe.
 3. Configure game path and output path.
 4. Extract, convert, modify, deploy.
@@ -48,12 +48,12 @@ Add this to Steam/Epic launch options (single line):
 
 - This toolkit does NOT include game assets. You need your own copy of RAGE 2.
 - The Oodle DLL is NOT redistributed. It is auto-copied from your game folder.
-- Not all files can be modded (proprietary compression variants).
+- ~14% of entries remain hash-named (mostly engine placeholders and debug assets without public path names).
 
 ## Antivirus / SmartScreen
 
 VirusTotal: **0/71 clean**.
-Report: https://www.virustotal.com/gui/file/2639ff38a5422b17535fd3fce6ed15a01cd5ff400440168e8d118f7ae3355d12
+Report: https://www.virustotal.com/gui/home/upload
 
 If Windows SmartScreen shows a warning, click More info then Run anyway.
 
@@ -75,7 +75,7 @@ contributions are load-bearing for this toolkit:
 - **`resources/deca/rg2/filelist.txt`** (358,057 entries) — the raw path database
   used to reverse MurmurHash3 hashes back to real file names. Without this,
   100% of extracted files would be named `4A3F8C12D5E9B7A1.avtx` style.
-  It is what makes the 81% coverage possible.
+  It is what makes the 86.2% coverage possible.
 - **`python/deca/deca/ff_arc_tab.py`** — a reference parser for the TAB v3.1
   format. This is the file that documented the multi-block compression layout
   used by RAGE 2 archives. Without studying this parser, we would not have known
