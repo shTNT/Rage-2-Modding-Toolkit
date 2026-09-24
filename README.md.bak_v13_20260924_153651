@@ -1,33 +1,5 @@
 # RAGE 2 Modding Toolkit
 
-## What's new in v1.3.0 (2026-09-24)
-
-- **Supplemental universe support.** Both `archives_win64/initial` and
-  `archives_win64/supplemental` are scanned. Previously only `initial`
-  was read, missing ~23,000 additional hashes.
-- **Three-file filelist** — `filelist.txt` + `filelist_extra.txt` +
-  `filelist_supplemental.txt`, loaded with hash-level dedup.
-- **Definitive filelist** — see [`FILELIST_DEFINITIVO/`](FILELIST_DEFINITIVO/)
-  with 35,999 unique hashes, bit-a-bit verification report, and full
-  method documentation.
-
-### Coverage
-
-| Universe | Hashes | Coverage |
-|---|---|---|
-| Initial | 14,459 / 16,385 | 88.25% |
-| Supplemental | 21,540 / 23,134 | 93.11% |
-| **Union** | **35,999 / 39,519** | **91.09%** |
-
-Localization strings are excluded on purpose. Including them would
-inflate the denominator to 85,258 hashes, of which only ~45,739 are
-localization — not needed for asset modding.
-
-### Hash algorithm
-
-MurmurHash3 x64 128-bit, seed=0, low 64 bits of h1.
-Test vector: `hash("text/master_eng.stringlookup") = 8453EE3581F31F39`
-
 > Extract, convert, organize and deploy modded assets for RAGE 2.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -38,7 +10,7 @@ Test vector: `hash("text/master_eng.stringlookup") = 8453EE3581F31F39`
 ## What it does
 
 - **Extracts** all 13 `.arc` archives from RAGE 2 (~14,400 files in ~30 s).
-- **Identifies** files by hash using a 14,212-entry community filelist (**91.09% coverage**).
+- **Identifies** files by hash using a 14,212-entry community filelist (**86.74% coverage**).
 - **Converts** `.avtx` textures to editable `.dds`.
 - **Organizes** content by type (textures, audio, video, UI, data).
 - **Repacks** modified files back into `.arc` archives that the game loads on launch.
@@ -46,7 +18,7 @@ Test vector: `hash("text/master_eng.stringlookup") = 8453EE3581F31F39`
 
 ## Download
 
-- **Latest Release**: [RAGE2TOOLKIT-v1.3.0.7z](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases)
+- **Latest Release**: [RAGE2TOOLKIT-v1.2.1.7z](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases)
 - **SHA-256**: listed on the release page.
 
 ## Documentation
@@ -59,7 +31,7 @@ Full documentation: https://shtnt.github.io/Rage-2-Modding-Toolkit/
 
 ## Filelist
 
-The full hash-to-path mapping used by the toolkit is published at [data/filelist.txt](data/filelist.txt) - **14,212 entries, 91.09% coverage**.
+The full hash-to-path mapping used by the toolkit is published at [data/filelist.txt](data/filelist.txt) - **14,212 entries, 86.74% coverage**.
 
 The remaining 2,173 entries are:
 
@@ -74,7 +46,7 @@ Anyone can contribute new mappings by appending to `data/filelist.txt` (one per 
 
 ## Installation
 
-1. Extract RAGE2TOOLKIT-v1.3.0.7z anywhere.
+1. Extract RAGE2TOOLKIT-v1.2.1.7z anywhere.
 2. Run RAGE2Toolkit.exe.
 3. Configure game path and output path.
 4. Extract, convert, modify, deploy.
@@ -122,7 +94,7 @@ contributions are load-bearing for this toolkit:
 - **`resources/deca/rg2/filelist.txt`** (358,057 entries) - the raw path database
   used to reverse MurmurHash3 hashes back to real file names. Without this,
   100% of extracted files would be named `4A3F8C12D5E9B7A1.avtx` style.
-  It is what makes the 91.09% coverage possible.
+  It is what makes the 86.74% coverage possible.
 - **`python/deca/deca/ff_arc_tab.py`** - a reference parser for the TAB v3.1
   format. This is the file that documented the multi-block compression layout
   used by RAGE 2 archives. Without studying this parser, we would not have known
