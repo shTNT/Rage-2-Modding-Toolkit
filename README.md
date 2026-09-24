@@ -7,7 +7,7 @@
   read the initial universe, missing ~23,000 additional hashes.
 - **Three-file filelist** — `filelist.txt` + `filelist_extra.txt` +
   `filelist_supplemental.txt`, loaded with hash-level dedup.
-- **Definitive filelist** — see [`FILELIST_DEFINITIVO/`](FILELIST_DEFINITIVO/)
+- **Most complete filelist to date** — see [`filelist/`](filelist/)
   with 35,999 unique hashes, bit-a-bit verification report, and full
   method documentation.
 

@@ -7,7 +7,7 @@
   `archives_win64/initial` and `archives_win64/supplemental`.
 - Three-file filelist loading: `filelist.txt`, `filelist_extra.txt`,
   `filelist_supplemental.txt`.
-- `FILELIST_DEFINITIVO/` folder:
+- `filelist/` folder:
   - `filelist.txt` — 35,999 unique hashes (91.09% gameplay coverage)
   - `verification.txt` — bit-a-bit re-hash report (0 mismatch, 0 ghost)
   - `methods.txt` — documentation of every method that produced hashes
