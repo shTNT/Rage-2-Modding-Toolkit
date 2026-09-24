@@ -7,7 +7,7 @@
   read the initial universe, missing ~23,000 additional hashes.
 - Unified filelist - a single `data/filelist.txt` with 36,126 hashes. The original three sources (DECA base, initial extras, supplemental) are preserved under `data/sources/` for documentation.
   `filelist_supplemental.txt`, loaded with hash-level dedup.
-- **Most complete filelist to date** â€” see [`filelist/`](filelist/)
+- **Most complete filelist to date** — see [`filelist/`](filelist/)
   with 36,126 unique hashes, bit-a-bit verification report, and full
   method documentation.
 

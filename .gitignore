@@ -35,3 +35,7 @@ _stage*/
 *.bak_v*
 src/bin/
 src/obj/
+
+# Backups locales
+*.bak_*
+*.bak

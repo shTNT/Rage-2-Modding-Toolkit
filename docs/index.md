@@ -8,7 +8,7 @@ description: Portable GUI toolkit for extracting, editing and repacking RAGE 2 .
 
 **A portable GUI toolkit for extracting, editing and repacking RAGE 2 assets.**
 
-Current release: [v1.3.0](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases/tag/v1.3.0) â€” filelist coverage **91.41%** (36,126 / 39,519 hashes).
+Current release: [v1.3.0](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases/tag/v1.3.0) — filelist coverage **91.41%** (36,126 / 39,519 hashes).
 
 [Download latest release](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases/latest){: .btn }
 
@@ -28,9 +28,9 @@ Current release: [v1.3.0](https://github.com/shTNT/Rage-2-Modding-Toolkit/releas
 
 ## Documentation
 
-- [How to Use](HOW_TO_USE.html) â€” step-by-step guide
-- [Format Reference](FORMAT_REFERENCE.html) â€” `.arc`, `.avtx`, `.ddsc`, TAB 3.1 format, MurmurHash3
-- [Troubleshooting](TROUBLESHOOTING.html) â€” common issues
+- [How to Use](HOW_TO_USE.html) — step-by-step guide
+- [Format Reference](FORMAT_REFERENCE.html) — `.arc`, `.avtx`, `.ddsc`, TAB 3.1 format, MurmurHash3
+- [Troubleshooting](TROUBLESHOOTING.html) — common issues
 
 ## Source
 
@@ -42,9 +42,9 @@ All source code is public on GitHub:
 
 ## Credits
 
-- **DECA project** (kk49) â€” community filelist and reference TAB parser
-- **PredatorCZ** â€” ApexToolset (ddscConvert, R2SmallArchive), GPL v3
-- **Microsoft** â€” DirectXTex (texconv), MIT
+- **DECA project** (kk49) — community filelist and reference TAB parser
+- **PredatorCZ** — ApexToolset (ddscConvert, R2SmallArchive), GPL v3
+- **Microsoft** — DirectXTex (texconv), MIT
 
 ## Legal
 

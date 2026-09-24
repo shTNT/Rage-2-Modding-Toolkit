@@ -1,4 +1,4 @@
-# CHANGELOG â€” RAGE2Toolkit
+# CHANGELOG — RAGE2Toolkit
 
 ## [1.3.1] - 2026-09-24
 
@@ -16,9 +16,9 @@
 - Three-file filelist loading: `filelist.txt`, `filelist_extra.txt`,
   `filelist_supplemental.txt`.
 - `filelist/` folder:
-  - `filelist.txt` â€” 36,126 unique hashes (91.41% gameplay coverage)
-  - `verification.txt` â€” bit-a-bit re-hash report (0 mismatch, 0 ghost)
-  - `methods.txt` â€” documentation of every method that produced hashes
+  - `filelist.txt` — 36,126 unique hashes (91.41% gameplay coverage)
+  - `verification.txt` — bit-a-bit re-hash report (0 mismatch, 0 ghost)
+  - `methods.txt` — documentation of every method that produced hashes
 - Release artifact `RAGE2TOOLKIT-v1.3.0.7z` + `.sha256`.
 
 ### Changed
