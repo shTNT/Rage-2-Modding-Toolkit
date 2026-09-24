@@ -1,4 +1,4 @@
-﻿# Config and user data
+# Config and user data
 config/
 *.json
 
@@ -21,3 +21,13 @@ desktop.ini
 # Oodle DLL - NEVER commit
 bin/oo2core_7_win64.dll
 oo2core_7_win64.dll
+# Release binaries — kept only in GitHub Releases, not in the repo
+*.7z
+*.sha256
+# Build artifacts
+obj/
+_build*/
+_stage*/
+*.user
+# OS
+.DS_Store
