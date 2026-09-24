@@ -478,7 +478,7 @@ verified independently.
                      Ghidra murmur confirmation, toolkit patch for
                      supplemental, SprintBig (84M candidates, 0 hits),
                      Ghidra call graph (no paths), forensic ADF (+6 net).
-                     FINAL: 91.09% union (gameplay, no localization).
+                     FINAL: 91.41% union (gameplay, no localization).
 
 ================================================================================
 9. CREDITS AND SOURCES

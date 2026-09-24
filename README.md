@@ -30,7 +30,7 @@ Test vector: `hash("text/master_eng.stringlookup") = 8453EE3581F31F39`
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Platform: Windows](https://img.shields.io/badge/Platform-Windows%2010%2F11-blue)](https://www.microsoft.com/windows)
-[![Version](https://img.shields.io/badge/Version-1.3.0-green)](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases)
+[![Version](https://img.shields.io/badge/Version-1.3.1-green)](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases)
 [![VirusTotal](https://img.shields.io/badge/VirusTotal-0%2F71%20clean-brightgreen)](#antivirus--smartscreen)
 
 ## What it does

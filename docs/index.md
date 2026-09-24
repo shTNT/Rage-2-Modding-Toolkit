@@ -8,7 +8,7 @@ description: Portable GUI toolkit for extracting, editing and repacking RAGE 2 .
 
 **A portable GUI toolkit for extracting, editing and repacking RAGE 2 assets.**
 
-Current release: [v1.3.0](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases/tag/v1.3.0) — filelist coverage **91.41%** (36,126 / 39,519 hashes).
+Current release: [v1.3.0](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases/tag/v1.3.1) — filelist coverage **91.41%** (36,126 / 39,519 hashes).
 
 [Download latest release](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases/latest){: .btn }
 

@@ -25,7 +25,7 @@ Step 1 - Hash verification (re-hash):
   Mismatch:  0
 
 Step 2 - .tab membership:
-  In initial only:      14459
+  In initial only:      14461
   In supplemental only: 21540
   In both:              0
   In neither (ghost):   0
@@ -59,9 +59,9 @@ COVERAGE
 Excludes localization strings (45,739 unique hashes in a separate tree).
 
 PLAYABLE GAMEPLAY ASSETS (initial + supplemental, no localization):
-  Initial:      14459 / 16385 = 88,25%
+  Initial:      14461 / 16385 = 88,25%
   Supplemental: 21540 / 23134 = 93,11%
-  Union:        35999 / 39519 = 91,09%
+  Union:        36126 / 39519 = 91,41%
 
 If you naively include the localization tree (which is not needed for
 asset modding), coverage drops to 42.22%. That number is misleading.
