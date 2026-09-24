@@ -36,13 +36,17 @@ Full documentation: https://shtnt.github.io/Rage-2-Modding-Toolkit/
 3. Configure game path and output path.
 4. Extract, convert, modify, deploy.
 
-## Deploying to dropzone
+## Modifying and repacking
 
-Add this to Steam/Epic launch options (single line):
+After extracting and editing assets:
 
-~~~text
---vfs-fs dropzone --vfs-archive archives_win64 --vfs-archive patch_win64 --vfs-archive dlc_win64 --vfs-fs
-~~~
+1. Open the MOD & REPACK wizard in the toolkit.
+2. Select the `.arc` that contains your modified files.
+3. Point the wizard at your edited folder (drag & drop supported).
+4. The toolkit auto-backs up the original `.arc` as `.original` on first install.
+5. The modified archive is written and the game reads it directly on next launch.
+
+Note: modified files are written uncompressed (Oodle re-compression planned for a future release). Archive size grows slightly.
 
 ## Important Notes
 
