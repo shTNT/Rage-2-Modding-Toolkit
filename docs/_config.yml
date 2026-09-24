@@ -1,4 +1,39 @@
-﻿theme: jekyll-theme-minimal
+theme: jekyll-theme-minimal
 title: RAGE 2 Modding Toolkit
-description: Extract, convert, organize and deploy modded assets for RAGE 2.
+description: Portable GUI toolkit for extracting, editing and repacking RAGE 2 .arc archives. 86.2% filelist coverage.
 show_downloads: true
+
+# SEO / Metadata
+url: https://shtnt.github.io
+baseurl: /Rage-2-Modding-Toolkit
+lang: en
+
+# Author
+author:
+  name: Kry0genik
+  url: https://github.com/shTNT
+
+# Links
+github:
+  repository_url: https://github.com/shTNT/Rage-2-Modding-Toolkit
+  is_project_page: true
+  repository_name: Rage-2-Modding-Toolkit
+  owner_name: shTNT
+
+# Navigation
+nav:
+  - title: Home
+    url: /
+  - title: How to Use
+    url: /HOW_TO_USE.html
+  - title: Format Reference
+    url: /FORMAT_REFERENCE.html
+    - title: Troubleshooting
+    url: /TROUBLESHOOTING.html
+
+# Keywords for search engines
+keywords: RAGE 2, modding, toolkit, arc, avtx, ddsc, murmerhash, apex engine, avalanche, repack, extract, dds, textures
+
+# Plugins (minimal theme compatible)
+plugins:
+  - jekyll-seo-tag

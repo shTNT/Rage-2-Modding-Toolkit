@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://shtnt.github.io/Rage-2-Modding-Toolkit/sitemap.xml
