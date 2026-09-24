@@ -1,6 +1,6 @@
 # RAGE 2 Modding Toolkit
 
-## What's new in v1.3.0 (2026-09-24)
+## What's new in v1.3.1 (2026-09-24)
 
 - **Supplemental universe support.** Both `archives_win64/initial` and
   `archives_win64/supplemental` are scanned. Previous versions only
@@ -44,7 +44,7 @@ Test vector: `hash("text/master_eng.stringlookup") = 8453EE3581F31F39`
 
 ## Download
 
-- **Latest Release**: [RAGE2TOOLKIT-v1.3.0.7z](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases)
+- **Latest Release**: [RAGE2TOOLKIT-v1.3.1.7z](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases)
 - **SHA-256**: listed on the release page.
 
 ## Documentation
@@ -59,7 +59,7 @@ Full documentation: https://shtnt.github.io/Rage-2-Modding-Toolkit/
 
 The full hash-to-path mapping used by the toolkit is published at [data/filelist.txt](data/filelist.txt) - **35,999 entries, 91.09% gameplay coverage**.
 
-The remaining 2,173 entries are:
+The remaining 3,520 entries are:
 
 - ~1,449 engine placeholders (byte-identical payloads, no textual path by design)
 - ~116 CFX (proprietary Avalanche UI format)
@@ -72,7 +72,7 @@ Anyone can contribute new mappings by appending to `data/filelist.txt` (one per 
 
 ## Installation
 
-1. Extract RAGE2TOOLKIT-v1.3.0.7z anywhere.
+1. Extract RAGE2TOOLKIT-v1.3.1.7z anywhere.
 2. Run RAGE2Toolkit.exe.
 3. Configure game path and output path.
 4. Extract, convert, modify, deploy.
@@ -93,7 +93,7 @@ Note: modified files are written uncompressed (Oodle re-compression planned for 
 
 - This toolkit does NOT include game assets. You need your own copy of RAGE 2.
 - The Oodle DLL is NOT redistributed. It is auto-copied from your game folder.
-- ~13% of entries remain hash-named (mostly engine placeholders and debug assets without public path names).
+- ~9% of entries remain hash-named (mostly engine placeholders and debug assets without public path names).
 
 ## Antivirus / SmartScreen
 
