@@ -3,9 +3,9 @@ RAGE 2 FILELIST - VERIFICATION REPORT
 ================================================================================
 Generated:       2026-09-24 15:23:39
 Filelist:        filelist.txt
-Total entries:   35999
-Unique hashes:   35999
-Unique paths:    35999
+Total entries:   36192
+Unique hashes:   36192
+Unique paths:    36192
 
 ================================================================================
 METHOD
@@ -21,7 +21,7 @@ RESULTS
 ================================================================================
 
 Step 1 - Hash verification (re-hash):
-  OK:        35999 / 35999  (100,00%)
+  OK:        36192 / 36192  (100,00%)
   Mismatch:  0
 
 Step 2 - .tab membership:

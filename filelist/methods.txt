@@ -92,7 +92,7 @@ UTF-8 without BOM, LF line endings.
 ================================================================================
 
 Ranked by yield. Yields are additive per method; some overlap exists.
-Final unique total: 35,999 hashes.
+Final unique total: 36,192 hashes.
 
    4.0  Supplemental universe discovery                    23,134 hashes
         The second universe of .arc archives was found and opened.
@@ -393,7 +393,7 @@ verified independently.
        and suppSet (all hashes from supplemental .tab files)
     3. Report OK / mismatch / ghost counts
 
-  Current result: 35,999/35,999 OK, 0 mismatch, 0 ghost.
+  Current result: 36,192/36,192 OK, 0 mismatch, 0 ghost.
 
 --- 6.9 MERGE ORDER ---
 
