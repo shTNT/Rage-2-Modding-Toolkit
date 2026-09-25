@@ -1,5 +1,17 @@
 # CHANGELOG — RAGE2Toolkit
 
+## [2.0.2] - 2026-09-26
+
+### Fixed
+- Repack writer: emit block table sentinel `FFFFFFFF FFFFFFFF` at end
+  and increment `block_count`. Without it the engine computes the file
+  table offset one entry short and hangs on load.
+- Repack writer: sort file entries by hash before serializing. The engine
+  performs a binary search; unsorted entries made the archive unreadable.
+
+Both bugs were invisible from SHA comparison and only surfaced during an
+in-game test with a replaced `.atx1` texture (`game8.arc`).
+
 ## [2.0.1] - 2026-09-25
 
 ### Fixed
