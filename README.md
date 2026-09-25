@@ -5,19 +5,15 @@
 - **Supplemental universe support.** Both `archives_win64/initial` and
   `archives_win64/supplemental` are scanned. Previous versions only
   read the initial universe, missing ~23,000 additional hashes.
-- Unified filelist - a single `data/filelist.txt` with 36,126 hashes. The original three sources (DECA base, initial extras, supplemental) are preserved under `data/sources/` for documentation.
+- Unified filelist - a single `data/filelist.txt` with 36,192 hashes. The original three sources (DECA base, initial extras, supplemental) are preserved under `data/sources/` for documentation.
   `filelist_supplemental.txt`, loaded with hash-level dedup.
 - **Most complete filelist to date** — see [`filelist/`](filelist/)
-  with 36,126 unique hashes, bit-a-bit verification report, and full
+  with 36,192 unique hashes, bit-a-bit verification report, and full
   method documentation.
 
 ### Coverage
 
-| Universe | Hashes | Coverage |
-|---|---|---|
-| Initial | 14,461 / 16,385 | 88.25% |
-| Supplemental | 21,540 / 23,134 | 93.11% |
-| **Union** | **36,126 / 39,519** | **91.41%** |
+**36,192 / 39,519 = 91.58%** of gameplay asset hashes verified.
 
 Localization strings (45,739 unique hashes) are excluded on purpose.
 
@@ -36,7 +32,7 @@ Test vector: `hash("text/master_eng.stringlookup") = 8453EE3581F31F39`
 ## What it does
 
 - **Extracts** all 46 `.arc` archives (initial + supplemental) from RAGE 2 (~14,400 files in ~30 s).
-- **Identifies** files by hash using a community filelist with **91.41% coverage**.
+- **Identifies** files by hash using a community filelist with **91.58% coverage**.
 - **Converts** `.avtx` textures to editable `.dds`.
 - **Organizes** content by type (textures, audio, video, UI, data).
 - **Repacks** modified files back into `.arc` archives that the game loads on launch.
@@ -57,7 +53,7 @@ Full documentation: https://shtnt.github.io/Rage-2-Modding-Toolkit/
 
 ## Filelist
 
-The full hash-to-path mapping used by the toolkit is published at [data/filelist.txt](data/filelist.txt) - **36,126 entries, 91.41% gameplay coverage**.
+The full hash-to-path mapping used by the toolkit is published at [data/filelist.txt](data/filelist.txt) - **36,192 entries, 91.58% gameplay coverage**.
 
 The remaining 3,520 entries are:
 
@@ -120,7 +116,7 @@ contributions are load-bearing for this toolkit:
 - **`resources/deca/rg2/filelist.txt`** (358,057 entries) - the raw path database
   used to reverse MurmurHash3 hashes back to real file names. Without this,
   100% of extracted files would be named `4A3F8C12D5E9B7A1.avtx` style.
-  It is what makes the 91.41% coverage possible.
+  It is what makes the 91.58% coverage possible.
 - **`python/deca/deca/ff_arc_tab.py`** - a reference parser for the TAB v3.1
   format. This is the file that documented the multi-block compression layout
   used by RAGE 2 archives. Without studying this parser, we would not have known

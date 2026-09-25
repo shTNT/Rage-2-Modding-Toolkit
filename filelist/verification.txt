@@ -61,7 +61,7 @@ Excludes localization strings (45,739 unique hashes in a separate tree).
 PLAYABLE GAMEPLAY ASSETS (initial + supplemental, no localization):
   Initial:      14461 / 16385 = 88,25%
   Supplemental: 21540 / 23134 = 93,11%
-  Union:        36126 / 39519 = 91,41%
+  Union:        36192 / 39519 = 91,58%
 
 If you naively include the localization tree (which is not needed for
 asset modding), coverage drops to 42.22%. That number is misleading.

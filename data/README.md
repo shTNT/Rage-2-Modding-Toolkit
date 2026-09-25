@@ -1,32 +1,17 @@
-﻿# Filelist
+# Filelist
 
-Hash-to-path mapping used by RAGE2Toolkit to recover real file names from the .arc archives.
-
-## File
-
-- filelist.txt - 14,212 entries
+`filelist.txt` - 36,192 verified hashes mapping 64-bit asset hashes to their original engine paths. Single unified database, deduplicated at hash level.
 
 ## Coverage
 
-14,212 / 16,385 hashes (86.74%).
+**36,192 / 39,519 = 91.58%** of gameplay asset hashes have a verified path.
 
-The remaining 2,173 entries are:
-
-- ~1,449 engine placeholders (byte-identical payloads, no textual path by design)
-- ~116 CFX (proprietary Avalanche UI format)
-- ~63 OggS audio (Vorbis, no metadata)
-- ~7 RTPC manifest containers
-- ~199 Oodle variant failures
-- ~340 AVTX textures without public path names
+The original three sources (DECA base, initial extras, supplemental) are preserved under `sources/` for documentation only. The toolkit loads only `filelist.txt`.
 
 ## Format
 
-    <16-hex-digits>\t<path>
-
-## Source
-
-The base filelist is from the DECA project (https://github.com/kk49/deca). The extra entries were recovered by this project via MurmurHash3 brute-force and cross-orphan string mining - see CHANGELOG for details.
+`<HEX16><TAB><path>` - one entry per line, UTF-8 without BOM, LF line endings.
 
 ## Contributing
 
-If you recover additional hash to path mappings, append them to filelist.txt (one per line, tab-separated) and open a PR or share them in the DECA Discord #rage-2 channel.
+If you recover additional hash-to-path mappings, append them to `filelist.txt` (one per line, tab-separated) and open a PR, or share them in the DECA Discord #rage-2 channel.

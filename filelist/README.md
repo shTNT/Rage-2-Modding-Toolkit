@@ -6,18 +6,13 @@ complete filelist to date - bit-a-bit verified, no fabricated entries.
 ## Files
 
 | File | Description |
-|---|---|
-| [`filelist.txt`](filelist.txt) | **36,126 unique hashes** in `<HEX16>    <path>` format. This is what you want. |
+| [`filelist.txt`](filelist.txt) | **36,192 unique hashes** in `<HEX16>    <path>` format. This is what you want. |
 | [`verification.txt`](verification.txt) | Bit-a-bit re-hash report. Every entry is re-hashed from its path and confirmed to exist in a game `.tab`. |
 | [`methods.txt`](methods.txt) | Every method that produced hashes, ranked by yield, plus a reproducibility section. |
 
 ## Coverage (gameplay assets, excluding localization)
 
-| Universe | Hashes | Coverage |
-|---|---|---|
-| Initial | 14,461 / 16,385 | 88.25% |
-| Supplemental | 21,540 / 23,134 | 93.11% |
-| **Union** | **36,126 / 39,519** | **91.41%** |
+**36,192 / 39,519 = 91.58%** of gameplay asset hashes verified.
 
 Localization strings (45,739 unique hashes in a separate tree) are
 excluded on purpose. They are not needed for asset modding and would
@@ -52,7 +47,7 @@ assuming your paths are wrong.
 Every entry in `filelist.txt` has been re-hashed from its stored path
 and confirmed to exist in a game `.tab` file.
 
-- **36,126 / 36,126** re-hash OK
+- **36,192 / 36,192** re-hash OK
 - **0** mismatches
 - **0** ghosts (hashes not present in any `.tab`)
 - **Verdict: PASS**
