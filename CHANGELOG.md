@@ -1,5 +1,12 @@
 # CHANGELOG — RAGE2Toolkit
 
+## [2.0.1] - 2026-09-25
+
+### Fixed
+- SingleExtractForm search now matches by hash in addition to path.
+- type_map.json regenerated with all 39,519 hashes (was truncated to 500 per game).
+
+
 ## [2.0.0] - 2026-09-25
 
 Major release. Extract 10x faster, new parallel writer, asset validators, converters, and a redesigned drag & drop wizard. First release with verified round-trip determinism.
