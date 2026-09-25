@@ -1,15 +1,28 @@
 # RAGE 2 Modding Toolkit
 
-## What's new in v1.3.1 (2026-09-24)
+## What's new in v2.0.1 (2026-09-25)
 
-- **Supplemental universe support.** Both `archives_win64/initial` and
-  `archives_win64/supplemental` are scanned. Previous versions only
-  read the initial universe, missing ~23,000 additional hashes.
-- Unified filelist - a single `data/filelist.txt` with 36,192 hashes. The original three sources (DECA base, initial extras, supplemental) are preserved under `data/sources/` for documentation.
-  `filelist_supplemental.txt`, loaded with hash-level dedup.
-- **Most complete filelist to date** — see [`filelist/`](filelist/)
-  with 36,192 unique hashes, bit-a-bit verification report, and full
-  method documentation.
+Small hotfix on top of v2.0.0.
+
+- **SingleExtractForm search by hash.** Typing a 16-hex hash (e.g.
+  `4E37BD8EAD14BEA2`) now returns the matching asset. Before this fix
+  the searcher only looked at the path, so hash lookups returned 0
+  results even when the file was in the archive.
+- **type_map.json regenerated** with the full **39,519 hashes**.
+  Previous builds shipped a truncated type_map (arrays capped at 500
+  entries per game while `total` still claimed 39,519). The asset
+  browser now shows all 39,519 hashes instead of 20,353.
+
+## What's new in v2.0.0 (2026-09-25)
+
+- **Extractor 10x faster.** 46 archives / 39,519 files / 61.66 GB in
+  ~108 s (was ~20 min). Peak RAM 3.3 GB.
+- **Parallel writer (RepackerCore v5.2).** Oodle Kraken re-compression
+  in parallel, deterministic output, atomic commit.
+- **Asset validators** (14 types) and **converters**
+  (PNG/JPG/BMP/TGA -> DDSC, DDS -> DDSC, MP3/WAV/FLAC -> OGG).
+- **Redesigned drag & drop wizard** with Format & Files Guidelines.
+- **Full filelist in a single** `data/filelist.txt` (36,192 hashes).
 
 ### Coverage
 
@@ -26,12 +39,12 @@ Test vector: `hash("text/master_eng.stringlookup") = 8453EE3581F31F39`
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Platform: Windows](https://img.shields.io/badge/Platform-Windows%2010%2F11-blue)](https://www.microsoft.com/windows)
-[![Version](https://img.shields.io/badge/Version-1.3.1-green)](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases)
+[![Version](https://img.shields.io/badge/Version-2.0.1-green)](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases)
 [![VirusTotal](https://img.shields.io/badge/VirusTotal-0%2F71%20clean-brightgreen)](#antivirus--smartscreen)
 
 ## What it does
 
-- **Extracts** all 46 `.arc` archives (initial + supplemental) from RAGE 2 (~14,400 files in ~30 s).
+- **Extracts** all 46 `.arc` archives (initial + supplemental) from RAGE 2 (~39,519 files in ~108 s).
 - **Identifies** files by hash using a community filelist with **91.58% coverage**.
 - **Converts** `.avtx` textures to editable `.dds`.
 - **Organizes** content by type (textures, audio, video, UI, data).
@@ -40,7 +53,7 @@ Test vector: `hash("text/master_eng.stringlookup") = 8453EE3581F31F39`
 
 ## Download
 
-- **Latest Release**: [RAGE2TOOLKIT-v1.3.1.7z](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases)
+- **Latest Release**: [RAGE2TOOLKIT-v2.0.1.7z](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases)
 - **SHA-256**: listed on the release page.
 
 ## Documentation
@@ -68,7 +81,7 @@ Anyone can contribute new mappings by appending to `data/filelist.txt` (one per 
 
 ## Installation
 
-1. Extract RAGE2TOOLKIT-v1.3.1.7z anywhere.
+1. Extract RAGE2TOOLKIT-v2.0.1.7z anywhere.
 2. Run RAGE2Toolkit.exe.
 3. Configure game path and output path.
 4. Extract, convert, modify, deploy.
@@ -83,7 +96,7 @@ After extracting and editing assets:
 4. The toolkit auto-backs up the original `.arc` as `.original` on first install.
 5. The modified archive is written and the game reads it directly on next launch.
 
-Note: modified files are written uncompressed (Oodle re-compression planned for a future release). Archive size grows slightly.
+Note: modified files are re-compressed with Oodle Kraken in parallel since v2.0.0. Archive size grows only by the size of the modified assets.
 
 ## Important Notes
 
