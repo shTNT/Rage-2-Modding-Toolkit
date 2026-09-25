@@ -1,5 +1,25 @@
 # RAGE 2 Modding Toolkit
 
+## What's new in v2.0.2 (2026-09-26)
+
+Repack writer hotfix. Two format-level bugs were silently hanging the game
+on load after installing a modified `.arc`. Both were invisible from SHA
+comparison and only surfaced during an in-game test.
+
+- **Block table sentinel.** The writer was emitting a block table without
+  the terminating `FFFFFFFF FFFFFFFF` entry. The engine computes the file
+  table offset as `0x20 + block_count * 8`; without the sentinel,
+  `block_count` was one short and the engine read the first file entry as
+  if it were part of the block table.
+- **File entries sorted by hash.** The engine performs a binary search on
+  the file table by hash. The writer was emitting entries in physical-offset
+  order, so binary search returned wrong results and the game hung looking
+  for the archive index.
+
+Validation: round-trip with zero changes now produces a `.tab` that is
+byte-identical to the original (SHA256 match). Verified with a single
+`.atx1` texture replacement on `game8.arc`: game boots, menu loads, save
+loads, replaced texture visible.
 ## What's new in v2.0.1 (2026-09-25)
 
 Small hotfix on top of v2.0.0.
@@ -39,7 +59,7 @@ Test vector: `hash("text/master_eng.stringlookup") = 8453EE3581F31F39`
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Platform: Windows](https://img.shields.io/badge/Platform-Windows%2010%2F11-blue)](https://www.microsoft.com/windows)
-[![Version](https://img.shields.io/badge/Version-2.0.1-green)](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases)
+[![Version](https://img.shields.io/badge/Version-2.0.2-green)](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases)
 [![VirusTotal](https://img.shields.io/badge/VirusTotal-0%2F71%20clean-brightgreen)](#antivirus--smartscreen)
 
 ## What it does
@@ -53,7 +73,7 @@ Test vector: `hash("text/master_eng.stringlookup") = 8453EE3581F31F39`
 
 ## Download
 
-- **Latest Release**: [RAGE2TOOLKIT-v2.0.1.7z](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases)
+- **Latest Release**: [RAGE2TOOLKIT-v2.0.2.7z](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases)
 - **SHA-256**: listed on the release page.
 
 ## Documentation
@@ -81,7 +101,7 @@ Anyone can contribute new mappings by appending to `data/filelist.txt` (one per 
 
 ## Installation
 
-1. Extract RAGE2TOOLKIT-v2.0.1.7z anywhere.
+1. Extract RAGE2TOOLKIT-v2.0.2.7z anywhere.
 2. Run RAGE2Toolkit.exe.
 3. Configure game path and output path.
 4. Extract, convert, modify, deploy.
