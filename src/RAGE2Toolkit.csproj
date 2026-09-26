@@ -4,10 +4,18 @@
     <TargetFramework>net8.0-windows</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>RAGE2Toolkit</AssemblyName>
+    <RootNamespace>Rage2Toolkit</RootNamespace>
     <SelfContained>true</SelfContained>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <PublishSingleFile>false</PublishSingleFile>
-    <Version>1.3.1</Version>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>false</EnableCompressionInSingleFile>
+    <DebugType>none</DebugType>
+    <Version>2.0.3</Version>
+    <AssemblyVersion>2.0.3.0</AssemblyVersion>
+    <FileVersion>2.0.3</FileVersion>
+    <InformationalVersion>2.0.3</InformationalVersion>
+        <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>fragoneta.ico</ApplicationIcon>
     <Nullable>disable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
@@ -22,7 +30,20 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Rage2Toolkit.cs" />
+    <Compile Include="ExtractorOpt.cs" />
+    <Compile Include="SingleExtractForm.cs" />
     <Compile Include="Repack.cs" />
+    <Compile Include="RepackerCore.cs" />
     <Compile Include="Wizards.cs" />
+    <Compile Include="Updater.cs" />
+    <Compile Include="CrashHandler.cs" />
+    <Compile Include="Dialogs.cs" />
+    <Compile Include="AssetConverters.cs" />
+    <Compile Include="AssetValidators.cs" />
+  </ItemGroup>
+  <ItemGroup>
   </ItemGroup>
 </Project>
+
+
+

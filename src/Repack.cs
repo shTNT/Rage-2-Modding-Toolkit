@@ -11,7 +11,7 @@ using System.Windows.Forms;
 namespace Rage2Toolkit
 {
     // ============================================================
-    // TAB 3.1 - Parser + Writer (formato descifrado y validado)
+    // TabFormat - parser + serializer TAB 3.1
     // ============================================================
     static class TabFormat
     {
@@ -20,32 +20,39 @@ namespace Rage2Toolkit
         public const byte PAD = 0x30;
 
         public class Block { public uint CSize, USize; public bool Sentinel; }
+
         public class Entry
         {
-            public ulong Hash; public uint Offset, CSize, USize;
-            public ushort BIdx; public byte CType, CFlags;
+            public ulong Hash;
+            public uint Offset, CSize, USize;
+            public ushort BIdx;
+            public byte CType, CFlags;
             public Entry Clone() { return (Entry)MemberwiseClone(); }
         }
+
         public class Tab
         {
             public ushort Major, Minor;
-            public uint Alignment, FileCount, BlockCount, F14, F18, F1C;
+            public uint Alignment, FileCount, BlockCount, Padding, MaxCompressedBlockSize, UncompressedBlockSize;
             public List<Block> Blocks = new List<Block>();
             public List<Entry> Entries = new List<Entry>();
 
             public static Tab Parse(string path)
             {
                 byte[] d = File.ReadAllBytes(path);
-                if (BitConverter.ToUInt32(d, 0) != TAB_MAGIC) throw new Exception("Not a TAB file");
+                if (d.Length < 0x20) throw new Exception("TAB demasiado corto");
+                if (BitConverter.ToUInt32(d, 0) != TAB_MAGIC) throw new Exception("No es un TAB");
+
                 Tab t = new Tab();
                 t.Major = BitConverter.ToUInt16(d, 4);
                 t.Minor = BitConverter.ToUInt16(d, 6);
                 t.Alignment = BitConverter.ToUInt32(d, 8);
                 t.FileCount = BitConverter.ToUInt32(d, 0x0C);
                 t.BlockCount = BitConverter.ToUInt32(d, 0x10);
-                t.F14 = BitConverter.ToUInt32(d, 0x14);
-                t.F18 = BitConverter.ToUInt32(d, 0x18);
-                t.F1C = BitConverter.ToUInt32(d, 0x1C);
+                t.Padding = BitConverter.ToUInt32(d, 0x14);
+                t.MaxCompressedBlockSize = BitConverter.ToUInt32(d, 0x18);
+                t.UncompressedBlockSize = BitConverter.ToUInt32(d, 0x1C);
+
                 int off = 0x20;
                 for (int i = 0; i < t.BlockCount; i++)
                 {
@@ -53,7 +60,8 @@ namespace Rage2Toolkit
                     b.CSize = BitConverter.ToUInt32(d, off);
                     b.USize = BitConverter.ToUInt32(d, off + 4);
                     b.Sentinel = (b.CSize == 0xFFFFFFFF && b.USize == 0xFFFFFFFF);
-                    t.Blocks.Add(b); off += 8;
+                    t.Blocks.Add(b);
+                    off += 8;
                 }
                 for (int i = 0; i < t.FileCount; i++)
                 {
@@ -65,7 +73,8 @@ namespace Rage2Toolkit
                     e.BIdx = BitConverter.ToUInt16(d, off + 20);
                     e.CType = d[off + 22];
                     e.CFlags = d[off + 23];
-                    t.Entries.Add(e); off += 24;
+                    t.Entries.Add(e);
+                    off += 24;
                 }
                 return t;
             }
@@ -80,9 +89,10 @@ namespace Rage2Toolkit
                 Array.Copy(BitConverter.GetBytes(Alignment), 0, d, 8, 4);
                 Array.Copy(BitConverter.GetBytes(FileCount), 0, d, 0x0C, 4);
                 Array.Copy(BitConverter.GetBytes(BlockCount), 0, d, 0x10, 4);
-                Array.Copy(BitConverter.GetBytes(F14), 0, d, 0x14, 4);
-                Array.Copy(BitConverter.GetBytes(F18), 0, d, 0x18, 4);
-                Array.Copy(BitConverter.GetBytes(F1C), 0, d, 0x1C, 4);
+                Array.Copy(BitConverter.GetBytes(Padding), 0, d, 0x14, 4);
+                Array.Copy(BitConverter.GetBytes(MaxCompressedBlockSize), 0, d, 0x18, 4);
+                Array.Copy(BitConverter.GetBytes(UncompressedBlockSize), 0, d, 0x1C, 4);
+
                 int off = 0x20;
                 foreach (var b in Blocks)
                 {
@@ -107,72 +117,24 @@ namespace Rage2Toolkit
     }
 
     // ============================================================
-    // Oodle compress (Kraken / Mermaid / Selkie) - opcional
-    // ============================================================
-    static class OodleCompress
-    {
-        [DllImport("oo2core_7_win64.dll", CallingConvention = CallingConvention.Cdecl)]
-        public static extern long OodleLZ_Decompress(
-            byte[] compBuf, long compSize, byte[] rawBuf, long rawSize,
-            int fuzzSafe, int checkCRC, int verbosity,
-            IntPtr decBufBase, long decBufSize,
-            IntPtr fpCallback, IntPtr callbackUserData,
-            IntPtr decoderMemory, long decoderMemorySize, int threadPhase);
-
-        [DllImport("oo2core_7_win64.dll", CallingConvention = CallingConvention.Cdecl)]
-        public static extern long OodleLZ_Compress(
-            int compressor, byte[] raw, long rawLen, byte[] comp, int level,
-            IntPtr opts, IntPtr dict, long dictSz, IntPtr decBase, long decSz, long decLen);
-
-        [DllImport("oo2core_7_win64.dll", CallingConvention = CallingConvention.Cdecl)]
-        public static extern long OodleLZ_GetCompressedBufferSizeNeeded(long rawSize);
-
-        [DllImport("oo2core_7_win64.dll", CallingConvention = CallingConvention.Cdecl)]
-        public static extern IntPtr OodleLZ_CompressOptions_GetDefault(int compressor, int level);
-
-        public const int KRAKEN = 8;
-
-        public static byte[] Compress(byte[] raw, int compressor, int level)
-        {
-            long needed = OodleLZ_GetCompressedBufferSizeNeeded(raw.Length);
-            if (needed < raw.Length + 65536) needed = raw.Length + 65536;
-            byte[] comp = new byte[needed];
-            IntPtr opts = OodleLZ_CompressOptions_GetDefault(compressor, level);
-            long n = OodleLZ_Compress(compressor, raw, raw.Length, comp, level,
-                                      opts, IntPtr.Zero, 0, IntPtr.Zero, 0, 0);
-            if (n <= 0) throw new Exception("Oodle compress failed: " + n);
-            Array.Resize(ref comp, (int)n);
-            return comp;
-        }
-
-        public static byte[] Decompress(byte[] comp, int usz)
-        {
-            byte[] r = new byte[usz];
-            long n = OodleLZ_Decompress(comp, comp.Length, r, usz, 1, 0, 0,
-                IntPtr.Zero, 0, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, 0, 3);
-            if (n <= 0) throw new Exception("Oodle decompress failed: " + n);
-            return r;
-        }
-    }
-
-    // ============================================================
-    // Repacker - Extraer / rebuild con modificaciones
+    // Repacker - extraer + rebuild de .arc
     // ============================================================
     static class Repacker
     {
-        public class Replacement
-        {
-            public byte[] Data;        // payload final (AVTX raw)
-        }
+        public class Replacement { public byte[] Data; }
 
         public static byte[] ExtractEntry(TabFormat.Tab t, byte[] arc, TabFormat.Entry e)
         {
+            if (!Oodle.IsLoaded) throw new Exception("Oodle no cargado");
+
             if (e.CType == 0 || e.BIdx == 0)
             {
                 byte[] buf = new byte[e.USize];
+                if (e.Offset + e.USize > arc.Length) throw new Exception("offset fuera de rango");
                 Array.Copy(arc, (int)e.Offset, buf, 0, (int)e.USize);
                 return buf;
             }
+
             MemoryStream ms = new MemoryStream((int)e.USize);
             long pos = e.Offset;
             long remaining = e.USize;
@@ -184,7 +146,7 @@ namespace Rage2Toolkit
                 if (b.Sentinel) throw new Exception("unexpected sentinel block");
                 byte[] cbuf = new byte[b.CSize];
                 Array.Copy(arc, pos, cbuf, 0, (int)b.CSize);
-                byte[] ubuf = OodleCompress.Decompress(cbuf, (int)b.USize);
+                byte[] ubuf = Oodle.Decompress(cbuf, (int)b.USize);
                 ms.Write(ubuf, 0, ubuf.Length);
                 pos += b.CSize;
                 remaining -= b.USize;
@@ -232,13 +194,19 @@ namespace Rage2Toolkit
                         long total = 0;
                         int i = e.BIdx;
                         long rem = e.USize;
-                        while (rem > 0) { total += t.Blocks[i].CSize; rem -= t.Blocks[i].USize; i++; }
+                        while (rem > 0)
+                        {
+                            total += t.Blocks[i].CSize;
+                            rem -= t.Blocks[i].USize;
+                            i++;
+                        }
                         data = new byte[total];
                         Array.Copy(arc, (int)e.Offset, data, 0, (int)total);
                     }
                     newArc.Write(data, 0, data.Length);
                 }
             }
+
             long fp = ((newArc.Length + TabFormat.ALIGN - 1) / TabFormat.ALIGN) * TabFormat.ALIGN - newArc.Length;
             for (long p = 0; p < fp; p++) newArc.WriteByte(TabFormat.PAD);
 
@@ -246,11 +214,17 @@ namespace Rage2Toolkit
 
             TabFormat.Tab tNew = new TabFormat.Tab
             {
-                Major = t.Major, Minor = t.Minor, Alignment = t.Alignment,
-                FileCount = t.FileCount, BlockCount = t.BlockCount,
-                F14 = t.F14, F18 = t.F18, F1C = t.F1C,
+                Major = t.Major,
+                Minor = t.Minor,
+                Alignment = t.Alignment,
+                FileCount = t.FileCount,
+                BlockCount = t.BlockCount,
+                Padding = t.Padding,
+                MaxCompressedBlockSize = t.MaxCompressedBlockSize,
+                UncompressedBlockSize = t.UncompressedBlockSize,
                 Blocks = t.Blocks.Select(b => new TabFormat.Block { CSize = b.CSize, USize = b.USize, Sentinel = b.Sentinel }).ToList()
             };
+
             foreach (var origEntry in t.Entries)
             {
                 var ne = origEntry.Clone();
@@ -275,21 +249,21 @@ namespace Rage2Toolkit
     }
 
     // ============================================================
-    // RepackForm - GUI
+    // RepackForm - GUI de modificacion de texturas dentro de .arc
     // ============================================================
     public class RepackForm : Form
     {
-        readonly Color C_BG = Color.FromArgb(24, 24, 30);
-        readonly Color C_PANEL = Color.FromArgb(30, 30, 38);
-        readonly Color C_LOG = Color.FromArgb(10, 10, 15);
-        readonly Color C_HEAD = Color.FromArgb(15, 15, 20);
-        readonly Color C_INFO = Color.FromArgb(0, 200, 200);
-        readonly Color C_OK = Color.FromArgb(100, 220, 100);
-        readonly Color C_WARN = Color.FromArgb(230, 180, 74);
-        readonly Color C_ERR = Color.FromArgb(240, 100, 100);
-        readonly Color C_GRAY = Color.FromArgb(160, 160, 160);
-        readonly Color C_TEXT = Color.FromArgb(200, 200, 200);
-        readonly Color C_BTN = Color.FromArgb(50, 50, 60);
+        readonly Color C_BG      = Color.FromArgb(24, 24, 30);
+        readonly Color C_PANEL   = Color.FromArgb(30, 30, 38);
+        readonly Color C_LOG     = Color.FromArgb(10, 10, 15);
+        readonly Color C_HEAD    = Color.FromArgb(15, 15, 20);
+        readonly Color C_INFO    = Color.FromArgb(0, 200, 200);
+        readonly Color C_OK      = Color.FromArgb(100, 220, 100);
+        readonly Color C_WARN    = Color.FromArgb(230, 180, 74);
+        readonly Color C_ERR     = Color.FromArgb(240, 100, 100);
+        readonly Color C_GRAY    = Color.FromArgb(160, 160, 160);
+        readonly Color C_TEXT    = Color.FromArgb(200, 200, 200);
+        readonly Color C_BTN     = Color.FromArgb(50, 50, 60);
         readonly Color C_SECTION = Color.FromArgb(220, 80, 220);
 
         [DllImport("dwmapi.dll")]
@@ -322,10 +296,18 @@ namespace Rage2Toolkit
             this.BackColor = C_BG;
             this.ForeColor = Color.White;
             this.Font = new Font("Segoe UI", 10);
-            this.Icon = SystemIcons.Application;
+            this.AutoScaleMode = AutoScaleMode.Dpi;
+            AppInfo.ApplyTo(this);
+
             this.HandleCreated += (s, e) =>
             {
-                try { int v = 1; DwmSetWindowAttribute(this.Handle, 20, ref v, 4); DwmSetWindowAttribute(this.Handle, 19, ref v, 4); } catch { }
+                try
+                {
+                    int v = 1;
+                    DwmSetWindowAttribute(this.Handle, 20, ref v, 4);
+                    DwmSetWindowAttribute(this.Handle, 19, ref v, 4);
+                }
+                catch { }
             };
 
             workDir = Path.Combine(Path.GetTempPath(), "RAGE2Repack");
@@ -358,7 +340,6 @@ namespace Rage2Toolkit
             title.TextAlign = ContentAlignment.MiddleLeft;
             header.Controls.Add(title);
 
-            // Top: file selector
             Panel top = new Panel();
             top.Dock = DockStyle.Top;
             top.Height = 50;
@@ -420,10 +401,9 @@ namespace Rage2Toolkit
             btnClear.BackColor = Color.FromArgb(140, 50, 50);
             btnClear.ForeColor = Color.White;
             btnClear.Cursor = Cursors.Hand;
-            btnClear.Click += (s, e) => { pendingMods.Clear(); UpdatePendingLbl(); Log("Modificaciones pendientes limpiadas.", C_WARN); };
+            btnClear.Click += (s, e) => { pendingMods.Clear(); UpdatePendingLbl(); RefreshList(); Log("Modificaciones pendientes limpiadas.", C_WARN); };
             top.Controls.Add(btnClear);
 
-            // Bottom: action buttons + log
             Panel bottom = new Panel();
             bottom.Dock = DockStyle.Bottom;
             bottom.Height = 220;
@@ -480,7 +460,6 @@ namespace Rage2Toolkit
             logBox.ScrollBars = RichTextBoxScrollBars.Both;
             logPanel.Controls.Add(logBox);
 
-            // Center: entry list
             entryList = new ListView();
             entryList.Dock = DockStyle.Fill;
             entryList.View = View.Details;
@@ -521,8 +500,8 @@ namespace Rage2Toolkit
             {
                 string[] candidates = new string[]
                 {
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data", "filelist.txt"),
-                    Path.Combine(Paths.DataDir, "filelist.txt")
+                    Path.Combine(Paths.DataDir, "filelist.txt"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data", "filelist.txt")
                 };
                 bool loaded = false;
                 foreach (string p in candidates)
@@ -534,7 +513,8 @@ namespace Rage2Toolkit
                         string[] parts = line.Split(new char[] { '\t' }, 2);
                         if (parts.Length < 2) continue;
                         ulong h;
-                        if (!ulong.TryParse(parts[0], System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out h)) continue;
+                        if (!ulong.TryParse(parts[0], System.Globalization.NumberStyles.HexNumber,
+                            System.Globalization.CultureInfo.InvariantCulture, out h)) continue;
                         namesByHash[h] = parts[1].Trim();
                     }
                     Log("Filelist: " + namesByHash.Count + " entries loaded from " + p, C_OK);
@@ -561,7 +541,7 @@ namespace Rage2Toolkit
                 Log("No existe " + initDir + " ni " + suppDir, C_ERR);
                 return;
             }
-            var arcs = new System.Collections.Generic.List<string>();
+            var arcs = new List<string>();
             if (Directory.Exists(initDir)) arcs.AddRange(Directory.GetFiles(initDir, "game*.arc"));
             if (Directory.Exists(suppDir)) arcs.AddRange(Directory.GetFiles(suppDir, "game*.arc"));
             var arcsSorted = arcs.OrderBy(f => f).ToList();
@@ -668,7 +648,6 @@ namespace Rage2Toolkit
                 File.WriteAllBytes(avtxPath, data);
                 Log("  AVTX: " + avtxPath + " (" + data.Length + " bytes)", C_OK);
 
-                // Detectar extensión real
                 string magic = data.Length >= 4 ? Encoding.ASCII.GetString(data, 0, 4) : "";
                 Log("  Magic: " + magic, C_GRAY);
 
@@ -720,7 +699,6 @@ namespace Rage2Toolkit
                 LogSection("Aplicando DDS modificado a " + hashStr);
                 Log("  DDS: " + ddsPath, C_GRAY);
 
-                // 1) texconv para asegurar mipmaps (Kraken falla sin mip chain)
                 string texconv = Path.Combine(Paths.BinDir, "texconv.exe");
                 if (File.Exists(texconv))
                 {
@@ -732,7 +710,6 @@ namespace Rage2Toolkit
                     else Log("  texconv no genero salida, uso original", C_WARN);
                 }
 
-                // 2) ddscConvert DDS -> AVTX
                 string ddsc = Path.Combine(Paths.BinDir, "ddscConvert.exe");
                 RunProc(ddsc, "\"" + ddsPath + "\"");
                 string avtxOut = Path.ChangeExtension(ddsPath, ".avtx");
@@ -768,10 +745,10 @@ namespace Rage2Toolkit
                 string outArc = Path.Combine(Path.GetDirectoryName(currentArcPath), bn + "_mod.arc");
                 string outTab = Path.Combine(Path.GetDirectoryName(currentArcPath), bn + "_mod.tab");
 
-                var repl = new Dictionary<ulong, Repacker.Replacement>();
-                foreach (var kv in pendingMods) repl[kv.Key] = new Repacker.Replacement { Data = kv.Value };
+                var repl = new Dictionary<ulong, byte[]>();
+                foreach (var kv in pendingMods) repl[kv.Key] = kv.Value;
 
-                Repacker.Rebuild(currentTabPath, currentArcPath, repl, outTab, outArc, m => Log(m, C_GRAY));
+                RepackerCore.Rebuild(currentTabPath, currentArcPath, repl, outTab, outArc, m => Log(m, C_GRAY));
                 Log("[OK] Rebuild completo", C_OK);
             }
             catch (Exception ex) { Log("Error rebuild: " + ex.Message, C_ERR); }
@@ -856,4 +833,3 @@ namespace Rage2Toolkit
         }
     }
 }
-

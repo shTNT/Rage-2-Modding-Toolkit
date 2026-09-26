@@ -1,4 +1,76 @@
-# RAGE 2 Modding Toolkit
+## What's new in v2.0.3 (2026-09-26)
+
+**Feature release.** New asset browser tree, descriptive extract filenames, sRGB-aware conversion, and a 92.85% filelist (up from 91.58%).
+
+### Asset browser tree — 4 levels instead of 3
+
+The browse & extract tree now organizes assets as:
+
+**Category > Entity > Resource type > Asset**
+
+For example: `WEAPONS > ark_assault > textures > ark_assault_dif.atx1`. Previously textures were buried under `MODELS` because the tree grouped by the first path segment. New tree uses `data/type_map_v2.json` with 12 semantic categories (WEAPONS, CHARACTERS, VEHICLES, ENVIRONMENT, AUDIO, UI, SCRIPTS, ANIMATIONS, EFFECTS, VIDEOS, DLC, UNCATEGORIZED).
+
+### Descriptive filenames on extract
+
+Extracted files are now named `<descriptive>_<HASH16>.<ext>` instead of just `<HASH16>.<ext>`.
+
+- Before: `4E37BD8EAD14BEA2.atx1`
+- After:  `ark_assault_dif_4E37BD8EAD14BEA2.atx1`
+
+The repack wizard parses both formats: the trailing 16-hex hash is extracted by regex, everything before is ignored. Backward compatible with files extracted by older versions.
+
+### sRGB-aware texture conversion
+
+When converting DDS/DDSC to PNG, the toolkit now picks the correct sRGB flags based on PBR suffix:
+
+- `_dif`, `_emc`, `_albedo`, `_color` → `-srgbi -srgbo -f R8G8B8A8_UNORM_SRGB` (color-accurate)
+- `_nrm`, `_mpm`, `_dtm`, `_msk` → linear (BC7_UNORM)
+
+Previously all textures were converted linear, causing albedo maps to appear washed-out.
+
+### Convert dropdown in the browser
+
+The Single Extract browser now has a `Convert to editable` checkbox with a format dropdown (`PNG / DDS / OGG / WAV`). When checked, extracted assets are automatically converted to the selected format:
+
+- Textures (`.ddsc`, `.avtx`) → `PNG` or `DDS`
+- Audio (`.mp3`, `.wav`, `.flac`) → `OGG`
+
+The dropdown auto-selects a sensible default based on the currently selected asset type.
+
+### Extract cleanup
+
+Intermediate files (`.ddsc`, `.avtx`, `.dds`, `__tmp_rev` staging folder) are deleted after a successful conversion. Only the final editable file remains.
+
+### Unknown extension fallback
+
+When the extractor cannot identify a file's format from its magic bytes (common for BC1 raw blobs like `.atx1`), it now falls back to the extension from the filelist path instead of writing `.unknown`. Files are no longer mislabeled.
+
+### Classify coverage expanded
+
+- `.modelc`, `.epe`, `.epeb`, `.epeo` — recognized as native (model/entity containers)
+- `.atx1..9` — flagged as `raw BC1 mip blob (no descriptor sibling, not editable)` when appropriate, based on REDxEYE's confirmation that these are raw data blobs without dimensions or pixel format metadata
+
+### Alphabetical sort after extract
+
+Extracted files are re-sorted alphabetically at the end of the extraction pass. Reduces visual entropy in the output folder; Windows Explorer displays them in order rather than in arbitrary write order.
+
+### Fixed: crash on tree selection
+
+`tree.AfterSelect` handler was being attached to a null reference in the constructor. Now attached after the `TreeView` is instantiated.
+
+### Filelist: 92.85% coverage (was 91.58%)
+
+- **36,695 / 39,519** gameplay hashes verified (up from 36,192)
+- **+503** new hashes recovered via corpus-wide string mining
+- **methods.txt v2.0** documents all 26 methods used and 19 dead ends
+
+The 2,824 remaining orphans are not reachable via static analysis; verified empirically by ~55 billion candidate tests across 15+ tools.
+
+### Compatibility
+
+Backward compatible with mods created by v1.3.x and v2.0.x. Extracted files from older versions (`<HASH>.<ext>`) continue to work — the repack parser accepts both naming schemes.
+
+---
 
 ## What's new in v2.0.2 (2026-09-26)
 

@@ -3,81 +3,261 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace Rage2Toolkit
 {
+    // ============================================================
+    // AppInfo - version y icono dinamicos
+    // ============================================================
+    static class AppInfo
+    {
+        public static string Version
+        {
+            get
+            {
+                try
+                {
+                    System.Version v = Assembly.GetExecutingAssembly().GetName().Version;
+                    if (v == null) return "0.0.0";
+                    return v.Major + "." + v.Minor + "." + v.Build;
+                }
+                catch { return "0.0.0"; }
+            }
+        }
+
+        public static string Display { get { return "v" + Version; } }
+
+        static Icon _icon;
+        public static Icon GetIcon()
+        {
+            if (_icon != null) return _icon;
+            try
+            {
+                string exe = Application.ExecutablePath;
+                if (!string.IsNullOrEmpty(exe) && File.Exists(exe))
+                {
+                    Icon extracted = Icon.ExtractAssociatedIcon(exe);
+                    if (extracted != null) { _icon = extracted; return _icon; }
+                }
+            }
+            catch { }
+            _icon = SystemIcons.Application;
+            return _icon;
+        }
+
+        public static void ApplyTo(Form f)
+        {
+            try { f.Icon = GetIcon(); } catch { }
+        }
+    }
+
+    // ============================================================
+    // Paths - rutas resueltas contra el exe
+    // ============================================================
     static class Paths
     {
-        // Local-first: everything is next to the .exe
-        public static readonly string ExeDir = Path.GetDirectoryName(Application.ExecutablePath);
-        public static readonly string BinDir = Path.Combine(ExeDir, "bin");
-        public static readonly string DataDir = Path.Combine(ExeDir, "data");
-        public static readonly string ConfigDir = Path.Combine(ExeDir, "config");
-        public static readonly string ConfigFile = Path.Combine(ConfigDir, "paths.txt");
+        public static readonly string ExeDir;
+        public static readonly string BinDir;
+        public static readonly string DataDir;
+        public static readonly string ConfigDir;
+        public static readonly string ConfigFile;
+        public static readonly string DefaultOutputDir;
+
+        static Paths()
+        {
+            string dir = null;
+            try { dir = Path.GetDirectoryName(Application.ExecutablePath); } catch { }
+            if (string.IsNullOrEmpty(dir))
+            {
+                try { dir = AppContext.BaseDirectory; } catch { }
+            }
+            if (string.IsNullOrEmpty(dir)) dir = Environment.CurrentDirectory;
+            dir = dir.TrimEnd('\\', '/');
+
+            ExeDir = dir;
+            BinDir = Path.Combine(dir, "bin");
+            DataDir = Path.Combine(dir, "data");
+            ConfigDir = Path.Combine(dir, "config");
+            ConfigFile = Path.Combine(ConfigDir, "paths.txt");
+            DefaultOutputDir = Path.Combine(dir, "RAGE2Toolkit_Output");
+        }
 
         public static void EnsureAll()
         {
-            Directory.CreateDirectory(BinDir);
-            Directory.CreateDirectory(DataDir);
-            Directory.CreateDirectory(ConfigDir);
+            try { Directory.CreateDirectory(BinDir); } catch { }
+            try { Directory.CreateDirectory(DataDir); } catch { }
+            try { Directory.CreateDirectory(ConfigDir); } catch { }
         }
+
+        public static string OodleDllPath { get { return Path.Combine(BinDir, "oo2core_7_win64.dll"); } }
+
+        public static bool OodlePresent { get { try { return File.Exists(OodleDllPath); } catch { return false; } } }
     }
 
-    static class Embedded
+    // ============================================================
+    // Abbreviate - acortar rutas largas para la UI
+    // ============================================================
+    static class Abbreviate
     {
-        static readonly string[] BinFiles = { "ddscConvert.exe", "ddscConvert.exe.config", "texconv.exe", "R2SmallArchive.exe" };
-        static readonly string[] DataFiles = { "filelist.txt", "filelist_raw.txt", "filelist_extra.txt", "filelist_supplemental.txt" };
-
-        public static void ExtractAll()
+        public static string ShortPath(string p, int maxLen = 60)
         {
-            Paths.EnsureAll();
-            var asm = Assembly.GetExecutingAssembly();
-            foreach (string rn in asm.GetManifestResourceNames())
-            {
-                string tdir = null, fname = null;
-                foreach (string b in BinFiles)
-                    if (rn.EndsWith("." + b) || rn.EndsWith(b)) { tdir = Paths.BinDir; fname = b; break; }
-                if (tdir == null)
-                    foreach (string d in DataFiles)
-                        if (rn.EndsWith("." + d) || rn.EndsWith(d)) { tdir = Paths.DataDir; fname = d; break; }
-                if (tdir == null) continue;
-                string t = Path.Combine(tdir, fname);
-                if (File.Exists(t)) continue;
-                using (Stream s = asm.GetManifestResourceStream(rn))
-                using (FileStream fs = File.Create(t))
-                    s.CopyTo(fs);
-            }
+            if (string.IsNullOrEmpty(p)) return p;
+            if (maxLen < 8) maxLen = 8;
+            if (p.Length <= maxLen) return p;
+            return p.Substring(0, maxLen - 3) + "...";
         }
     }
 
+    // ============================================================
+    // Oodle - carga dinamica desde el bin/ local
+    // ============================================================
     static class Oodle
     {
-        [DllImport("oo2core_7_win64.dll", CallingConvention = CallingConvention.Cdecl)]
-        public static extern long OodleLZ_Decompress(
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        static extern IntPtr LoadLibraryW(string lpFileName);
+
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Ansi)]
+        static extern IntPtr GetProcAddress(IntPtr hModule, string lpProcName);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        static extern bool FreeLibrary(IntPtr hModule);
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        delegate long DecompressFn(
             byte[] compBuf, long compSize, byte[] rawBuf, long rawSize,
             int fuzzSafe, int checkCRC, int verbosity,
             IntPtr decBufBase, long decBufSize,
             IntPtr fpCallback, IntPtr callbackUserData,
             IntPtr decoderMemory, long decoderMemorySize, int threadPhase);
-    }
 
-    static class Extractor
-    {
-        static byte[] DecompressOodle(byte[] comp, int usz)
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        delegate long GetCompressedBufferSizeNeededFn(long rawSize);
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        delegate long CompressFn(
+            int compressor, byte[] raw, long rawLen, byte[] comp, int level,
+            IntPtr opts, IntPtr dict, long dictSz, IntPtr decBase, long decSz, long decLen);
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        delegate IntPtr CompressOptions_GetDefaultFn(int compressor, int level);
+
+        static IntPtr hLib = IntPtr.Zero;
+        static DecompressFn fnDecompress;
+        static CompressFn fnCompress;
+        static GetCompressedBufferSizeNeededFn fnNeeded;
+        static CompressOptions_GetDefaultFn fnOptsDefault;
+        static string lastError = "";
+
+        public static bool IsLoaded { get { return fnDecompress != null; } }
+        public static string LastError { get { return lastError; } }
+
+        public static bool TryLoad(string dllPath)
         {
-            byte[] r = new byte[usz];
-            long n = Oodle.OodleLZ_Decompress(comp, comp.Length, r, usz, 1, 0, 0,
-                IntPtr.Zero, 0, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, 0, 3);
-            if (n <= 0) throw new Exception("Oodle error: " + n);
-            return r;
+            if (fnDecompress != null) return true;
+            lastError = "";
+            if (string.IsNullOrEmpty(dllPath) || !File.Exists(dllPath))
+            {
+                lastError = "no existe: " + dllPath;
+                return false;
+            }
+            try
+            {
+                if (hLib != IntPtr.Zero) { try { FreeLibrary(hLib); } catch { } hLib = IntPtr.Zero; }
+
+                hLib = LoadLibraryW(dllPath);
+                if (hLib == IntPtr.Zero)
+                {
+                    lastError = "LoadLibraryW fallo (err " + Marshal.GetLastWin32Error() + ")";
+                    return false;
+                }
+
+                IntPtr pDec = GetProcAddress(hLib, "OodleLZ_Decompress");
+                if (pDec == IntPtr.Zero)
+                {
+                    lastError = "OodleLZ_Decompress no exportada";
+                    try { FreeLibrary(hLib); } catch { } hLib = IntPtr.Zero;
+                    return false;
+                }
+                fnDecompress = (DecompressFn)Marshal.GetDelegateForFunctionPointer(pDec, typeof(DecompressFn));
+
+                IntPtr pCmp = GetProcAddress(hLib, "OodleLZ_Compress");
+                if (pCmp != IntPtr.Zero)
+                    fnCompress = (CompressFn)Marshal.GetDelegateForFunctionPointer(pCmp, typeof(CompressFn));
+
+                IntPtr pN = GetProcAddress(hLib, "OodleLZ_GetCompressedBufferSizeNeeded");
+                if (pN != IntPtr.Zero)
+                    fnNeeded = (GetCompressedBufferSizeNeededFn)Marshal.GetDelegateForFunctionPointer(pN, typeof(GetCompressedBufferSizeNeededFn));
+
+                IntPtr pO = GetProcAddress(hLib, "OodleLZ_CompressOptions_GetDefault");
+                if (pO != IntPtr.Zero)
+                    fnOptsDefault = (CompressOptions_GetDefaultFn)Marshal.GetDelegateForFunctionPointer(pO, typeof(CompressOptions_GetDefaultFn));
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                lastError = ex.Message;
+                return false;
+            }
         }
 
-        static string DetectExt(byte[] d)
+        public static bool Decompress(byte[] comp, int compOff, int compLen, byte[] dst, int dstOff, int dstLen)
+        {
+            if (fnDecompress == null) throw new Exception("Oodle no cargado");
+            if (comp == null || dst == null) return false;
+            if (compOff < 0 || compLen < 0 || compOff + compLen > comp.Length) return false;
+            if (dstOff < 0 || dstLen < 0 || dstOff + dstLen > dst.Length) return false;
+            if (compOff == 0 && dstOff == 0 && comp.Length == compLen && dst.Length == dstLen) {
+                long n = fnDecompress(comp, compLen, dst, dstLen, 0, 0, 0,
+                    IntPtr.Zero, 0, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, 0, 3);
+                return n > 0;
+            }
+            byte[] cLocal = new byte[compLen];
+            Array.Copy(comp, compOff, cLocal, 0, compLen);
+            byte[] dLocal = new byte[dstLen];
+            long r = fnDecompress(cLocal, compLen, dLocal, dstLen, 0, 0, 0,
+                IntPtr.Zero, 0, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, 0, 3);
+            if (r <= 0) return false;
+            Array.Copy(dLocal, 0, dst, dstOff, dstLen);
+            return true;
+        }
+
+        public static byte[] Decompress(byte[] comp, int usz)
+        {
+            byte[] r = new byte[usz];
+            if (!Decompress(comp, 0, comp.Length, r, 0, usz)) throw new Exception("Oodle decompress error");
+            return r;
+        }
+        public const int KRAKEN = 8;
+
+        public static byte[] Compress(byte[] raw, int compressor, int level)
+        {
+            if (fnCompress == null || fnNeeded == null) throw new Exception("Oodle compress no disponible");
+            long needed = fnNeeded(raw.Length);
+            if (needed < raw.Length + 65536) needed = raw.Length + 65536;
+            byte[] comp = new byte[needed];
+            IntPtr opts = fnOptsDefault != null ? fnOptsDefault(compressor, level) : IntPtr.Zero;
+            long n = fnCompress(compressor, raw, raw.Length, comp, level,
+                opts, IntPtr.Zero, 0, IntPtr.Zero, 0, 0);
+            if (n <= 0) throw new Exception("Oodle compress error: " + n);
+            Array.Resize(ref comp, (int)n);
+            return comp;
+        }
+    }
+
+    // ============================================================
+    // Extractor - descomprime .tab + .arc
+    // ============================================================
+    static class Extractor
+    {
+        internal static string DetectExt(byte[] d)
         {
             if (d.Length < 4) return "unknown";
             string m4 = Encoding.ASCII.GetString(d, 0, 4);
@@ -90,7 +270,6 @@ namespace Rage2Toolkit
             if (m8.StartsWith("FSB5")) return "fsb";
             if (m4 == "SARC") return "sarc";
             if (m4 == "RTPC") return "rtpc";
-            // TAG0 can appear at offset 4 (after 4-byte header)
             if (d.Length >= 8)
             {
                 string tagAt4 = Encoding.ASCII.GetString(d, 4, 4);
@@ -105,105 +284,72 @@ namespace Rage2Toolkit
             return "unknown";
         }
 
-        static void ExtractOne(string tabPath, string arcPath, string outDir, out int extracted, out int failed)
-        {
-            extracted = 0; failed = 0;
-            byte[] tab = File.ReadAllBytes(tabPath);
-            if (BitConverter.ToUInt16(tab, 4) != 3 || BitConverter.ToUInt16(tab, 6) != 1) return;
-            uint fcount = BitConverter.ToUInt32(tab, 12);
-            uint bcount = BitConverter.ToUInt32(tab, 16);
-            int bStart = 32;
-            int fStart = 32 + (int)bcount * 8;
-            uint[,] bt = new uint[bcount, 2];
-            for (int i = 0; i < bcount; i++) { bt[i, 0] = BitConverter.ToUInt32(tab, bStart + i*8); bt[i, 1] = BitConverter.ToUInt32(tab, bStart + i*8 + 4); }
-            byte[] arc = File.ReadAllBytes(arcPath);
-            Directory.CreateDirectory(outDir);
-            for (uint i = 0; i < fcount; i++)
-            {
-                int eo = fStart + (int)i * 24;
-                ulong hash = BitConverter.ToUInt64(tab, eo);
-                uint off = BitConverter.ToUInt32(tab, eo + 8);
-                uint csz = BitConverter.ToUInt32(tab, eo + 12);
-                uint usz = BitConverter.ToUInt32(tab, eo + 16);
-                ushort bidx = BitConverter.ToUInt16(tab, eo + 20);
-                byte ctype = tab[eo + 22];
-                try
-                {
-                    byte[] payload; bool blocks = false;
-                    if (bidx != 0xFFFF && bidx < bcount && !(bt[bidx,0] == 0xFFFFFFFF && bt[bidx,1] == 0xFFFFFFFF)) blocks = true;
-                    if (!blocks)
-                    {
-                        byte[] c = new byte[csz];
-                        Array.Copy(arc, off, c, 0, csz);
-                        if (ctype == 4) payload = DecompressOodle(c, (int)usz);
-                        else if (ctype == 0 && csz == usz) payload = c;
-                        else throw new Exception("ctype=" + ctype);
-                    }
-                    else
-                    {
-                        MemoryStream ms = new MemoryStream((int)usz);
-                        uint rem = csz; uint cur = bidx; long ac = off;
-                        while (rem > 0 && cur < bcount)
-                        {
-                            uint bc = bt[cur,0], bu = bt[cur,1];
-                            if (bc == 0xFFFFFFFF) break;
-                            byte[] c = new byte[bc];
-                            Array.Copy(arc, ac, c, 0, bc);
-                            byte[] dec = DecompressOodle(c, (int)bu);
-                            ms.Write(dec, 0, dec.Length);
-                            ac += bc; rem -= bc; cur++;
-                        }
-                        payload = ms.ToArray();
-                    }
-                    File.WriteAllBytes(Path.Combine(outDir, hash.ToString("X16") + "." + DetectExt(payload)), payload);
-                    extracted++;
-                }
-                catch { failed++; }
-            }
-        }
-
+        
         public static void ExtractAll(string gamePath, string outputBase, Action<string> log)
         {
-            string initDir = Path.Combine(gamePath, "archives_win64", "initial");
-            string suppDir = Path.Combine(gamePath, "archives_win64", "supplemental");
-            if (!Directory.Exists(initDir) && !Directory.Exists(suppDir)) throw new DirectoryNotFoundException("Cannot find: " + initDir + " nor " + suppDir);
-            var tabList = new System.Collections.Generic.List<string>();
-            if (Directory.Exists(initDir)) tabList.AddRange(Directory.GetFiles(initDir, "*.tab", SearchOption.AllDirectories));
-            if (Directory.Exists(suppDir)) tabList.AddRange(Directory.GetFiles(suppDir, "*.tab", SearchOption.AllDirectories));
-            string arcDir = initDir;
-            string[] tabs = tabList.ToArray();
-            log("Found " + tabs.Length + " archives. Using " + Environment.ProcessorCount + " threads.");
-            object lk = new object();
-            int tE = 0, tF = 0;
-            Parallel.ForEach(tabs, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount }, tabPath =>
+            ExtractAll(gamePath, outputBase, log, null, null, true);
+        }
+
+        public static ExtractorOpt.Stats ExtractAll(string gamePath, string outputBase, Action<string> log,
+            Action<int,int,string,int> onTabStart, Action<int,int,string,int,int> onTabDone, bool skipLanguages)
+        {
+            if (!Oodle.IsLoaded) throw new Exception("Oodle no cargado. Configura el juego primero.");
+            return ExtractorOpt.Extract(gamePath, outputBase, skipLanguages,
+                delegate(byte[] c, int co, int cl, byte[] d, int doff, int dl) { return Oodle.Decompress(c, co, cl, d, doff, dl); },
+                onTabStart, onTabDone, log);
+        }    }
+
+    // ============================================================
+    // UiHover - animacion suave al pasar el cursor por un boton
+    // ============================================================
+    static class UiHover
+    {
+        public static void Attach(Button b, Color normal, Color hover, int durationMs = 160)
+        {
+            if (b == null) return;
+            b.BackColor = normal;
+
+            Color from = normal, to = normal;
+            DateTime t0 = DateTime.MinValue;
+            Timer t = new Timer();
+            t.Interval = 12;
+
+            t.Tick += (s, e) =>
             {
-                string bn = Path.GetFileNameWithoutExtension(tabPath);
-                string ap = Path.Combine(Path.GetDirectoryName(tabPath), bn + ".arc");
-                if (!File.Exists(ap)) return;
-                string relDir = Path.GetDirectoryName(tabPath).Substring(Path.Combine(gamePath, "archives_win64").Length).TrimStart('\\');
-                string od = string.IsNullOrEmpty(relDir) ? Path.Combine(outputBase, bn) : Path.Combine(outputBase, relDir, bn);
-                int e, f;
-                ExtractOne(tabPath, ap, od, out e, out f);
-                lock (lk) { tE += e; tF += f; log(string.Format("  {0,-12} {1,6} ok  {2,5} fail", bn, e, f)); }
-            });
-            log(""); log("Total: " + tE + " extracted, " + tF + " failed");
+                double k = durationMs > 0
+                    ? Math.Min(1.0, (DateTime.Now - t0).TotalMilliseconds / durationMs)
+                    : 1.0;
+                int R = (int)(from.R + (to.R - from.R) * k);
+                int G = (int)(from.G + (to.G - from.G) * k);
+                int B = (int)(from.B + (to.B - from.B) * k);
+                try { b.BackColor = Color.FromArgb(R, G, B); } catch { }
+                if (k >= 1.0) t.Stop();
+            };
+
+            b.MouseEnter += (s, e) => { from = b.BackColor; to = hover; t0 = DateTime.Now; if (!t.Enabled) t.Start(); };
+            b.MouseLeave += (s, e) => { from = b.BackColor; to = normal; t0 = DateTime.Now; if (!t.Enabled) t.Start(); };
+            b.Disposed += (s, e) => { try { t.Stop(); t.Dispose(); } catch { } };
         }
     }
 
+    // ============================================================
+    // MainForm - herramientas avanzadas (extract, convert, classify, deploy)
+    // ============================================================
     public class MainForm : Form
     {
-        readonly Color C_BG = Color.FromArgb(24, 24, 30);
-        readonly Color C_PANEL = Color.FromArgb(30, 30, 38);
-        readonly Color C_LOG = Color.FromArgb(10, 10, 15);
-        readonly Color C_HEAD = Color.FromArgb(15, 15, 20);
-        readonly Color C_INFO = Color.FromArgb(0, 200, 200);
-        readonly Color C_OK = Color.FromArgb(100, 220, 100);
-        readonly Color C_WARN = Color.FromArgb(230, 180, 74);
-        readonly Color C_ERR = Color.FromArgb(240, 100, 100);
-        readonly Color C_GRAY = Color.FromArgb(160, 160, 160);
-        readonly Color C_TEXT = Color.FromArgb(200, 200, 200);
-        readonly Color C_BTN = Color.FromArgb(50, 50, 60);
-        readonly Color C_RED = Color.FromArgb(140, 50, 50);
+        readonly Color C_BG      = Color.FromArgb(24, 24, 30);
+        readonly Color C_PANEL   = Color.FromArgb(30, 30, 38);
+        readonly Color C_LOG     = Color.FromArgb(10, 10, 15);
+        readonly Color C_HEAD    = Color.FromArgb(15, 15, 20);
+        readonly Color C_INFO    = Color.FromArgb(0, 200, 200);
+        readonly Color C_OK      = Color.FromArgb(100, 220, 100);
+        readonly Color C_WARN    = Color.FromArgb(230, 180, 74);
+        readonly Color C_ERR     = Color.FromArgb(240, 100, 100);
+        readonly Color C_GRAY    = Color.FromArgb(160, 160, 160);
+        readonly Color C_TEXT    = Color.FromArgb(200, 200, 200);
+        readonly Color C_BTN     = Color.FromArgb(50, 50, 60);
+        readonly Color C_HOVER   = Color.FromArgb(70, 70, 90);
+        readonly Color C_RED     = Color.FromArgb(140, 50, 50);
         readonly Color C_SECTION = Color.FromArgb(220, 80, 220);
 
         RichTextBox logBox;
@@ -219,18 +365,24 @@ namespace Rage2Toolkit
 
         public MainForm()
         {
-            this.Text = "RAGE 2 Modding Toolkit v1.1  -  Advanced";
+            this.Text = "RAGE 2 Modding Toolkit " + AppInfo.Display + "  -  Advanced";
             this.ClientSize = new Size(1400, 900);
             this.MinimumSize = new Size(1100, 750);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.BackColor = C_BG;
             this.ForeColor = Color.White;
             this.Font = new Font("Segoe UI", 10);
-            this.Icon = SystemIcons.Application;
+            this.AutoScaleMode = AutoScaleMode.Dpi;
+            AppInfo.ApplyTo(this);
 
             this.HandleCreated += (s, e) =>
             {
-                try { int v = 1; DwmSetWindowAttribute(this.Handle, 20, ref v, 4); DwmSetWindowAttribute(this.Handle, 19, ref v, 4); }
+                try
+                {
+                    int v = 1;
+                    DwmSetWindowAttribute(this.Handle, 20, ref v, 4);
+                    DwmSetWindowAttribute(this.Handle, 19, ref v, 4);
+                }
                 catch { }
             };
 
@@ -238,7 +390,7 @@ namespace Rage2Toolkit
             BuildUI();
             UpdateStatus();
 
-            Log("RAGE 2 Modding Toolkit v1.1  -  by Kry0genik", C_INFO);
+            Log("RAGE 2 Modding Toolkit " + AppInfo.Display + "  -  by Kry0genik", C_INFO);
             Log("Ready. Follow the steps:", C_GRAY);
             Log("  1. Configure game path (auto-copies Oodle DLL)", C_GRAY);
             Log("  2. Configure output path", C_GRAY);
@@ -247,8 +399,6 @@ namespace Rage2Toolkit
             Log("  5. Classify files by type", C_GRAY);
             Log("  6. Modify with external tools", C_GRAY);
             Log("  7. Deploy to dropzone", C_GRAY);
-            Log("");
-            Log("Click [Help] for the full modding guide.", C_WARN);
         }
 
         void BuildUI()
@@ -256,7 +406,6 @@ namespace Rage2Toolkit
             int headerH = 90;
             int sidebarW = 320;
 
-            // ============ HEADER ============
             Panel header = new Panel();
             header.Location = new Point(0, 0);
             header.Size = new Size(this.ClientSize.Width, headerH);
@@ -280,30 +429,15 @@ namespace Rage2Toolkit
             subLbl.AutoSize = true;
             header.Controls.Add(subLbl);
 
-            Button helpBtn = new Button();
-            helpBtn.Text = "  ?  Help  ";
-            helpBtn.Font = new Font("Segoe UI", 10, FontStyle.Bold);
-            helpBtn.BackColor = C_BTN;
-            helpBtn.ForeColor = Color.White;
-            helpBtn.FlatStyle = FlatStyle.Flat;
-            helpBtn.FlatAppearance.BorderSize = 0;
-            helpBtn.Size = new Size(100, 34);
-            helpBtn.Location = new Point(this.ClientSize.Width - 240, 28);
-            helpBtn.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            helpBtn.Cursor = Cursors.Hand;
-            helpBtn.Click += (s, e) => ShowHelp();
-            header.Controls.Add(helpBtn);
-
             Label verLbl = new Label();
-            verLbl.Text = "v1.1";
+            verLbl.Text = AppInfo.Display;
             verLbl.Font = new Font("Segoe UI", 11, FontStyle.Bold);
             verLbl.ForeColor = Color.FromArgb(220, 200, 100);
-            verLbl.Location = new Point(this.ClientSize.Width - 70, 34);
+            verLbl.Location = new Point(this.ClientSize.Width - 80, 34);
             verLbl.AutoSize = true;
             verLbl.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             header.Controls.Add(verLbl);
 
-            // ============ STATUS STRIP ============
             StatusStrip status = new StatusStrip();
             status.BackColor = C_HEAD;
             status.ForeColor = Color.White;
@@ -319,7 +453,6 @@ namespace Rage2Toolkit
             status.Items.Add(statusOutput);
             this.Controls.Add(status);
 
-            // ============ SIDEBAR ============
             Panel sidebar = new Panel();
             sidebar.Location = new Point(0, headerH);
             sidebar.Size = new Size(sidebarW, this.ClientSize.Height - headerH - 22);
@@ -331,7 +464,6 @@ namespace Rage2Toolkit
             int y = 15;
             AddSection(sidebar, "EXTRACTION", ref y);
             AddButton(sidebar, "  Extract All .arc files", C_BTN, ref y, () => DoExtractAll());
-            AddButton(sidebar, "  Extract One .arc", C_BTN, ref y, () => Log("Use console mode for single-arc extraction.", C_GRAY));
 
             AddSection(sidebar, "TEXTURES", ref y);
             AddButton(sidebar, "  Convert .avtx to .dds", C_BTN, ref y, () => DoConvertAll());
@@ -343,7 +475,8 @@ namespace Rage2Toolkit
             AddButton(sidebar, "  Full file summary", C_BTN, ref y, () => DoSummary());
 
             AddSection(sidebar, "REPACK .ARC", ref y);
-            AddButton(sidebar, "  Modificar texturas (.arc)", C_INFO, ref y, () => { new RepackForm(this, gamePath, outputPath).ShowDialog(); });
+            AddButton(sidebar, "  Modificar texturas (.arc)", C_INFO, ref y,
+                () => { new RepackForm(this, gamePath, outputPath).ShowDialog(this); });
 
             AddSection(sidebar, "MOD DEPLOYMENT", ref y);
             AddButton(sidebar, "  Deploy to dropzone", C_RED, ref y, () => DoDeploy());
@@ -354,7 +487,6 @@ namespace Rage2Toolkit
             AddButton(sidebar, "  Open output folder", C_BTN, ref y, () => DoOpenOutput());
             AddButton(sidebar, "  Exit", C_RED, ref y, () => this.Close());
 
-            // ============ LOG PANEL ============
             Panel logPanel = new Panel();
             logPanel.Location = new Point(sidebarW, headerH);
             logPanel.Size = new Size(this.ClientSize.Width - sidebarW, this.ClientSize.Height - headerH - 22);
@@ -385,7 +517,6 @@ namespace Rage2Toolkit
             logPanel.Controls.Add(logBox);
             logBox.BringToFront();
 
-            // ============ PROGRESS BAR ============
             progress = new ProgressBar();
             progress.Location = new Point(sidebarW, this.ClientSize.Height - 30);
             progress.Size = new Size(this.ClientSize.Width - sidebarW, 8);
@@ -421,10 +552,10 @@ namespace Rage2Toolkit
             btn.Padding = new Padding(15, 0, 0, 0);
             btn.Font = new Font("Segoe UI", 10);
             btn.Cursor = Cursors.Hand;
-            Color orig = color;
-            btn.MouseEnter += (s, e) => { if (!running) btn.BackColor = Color.FromArgb(70, 70, 85); };
-            btn.MouseLeave += (s, e) => { btn.BackColor = orig; };
+
+            UiHover.Attach(btn, color, C_HOVER);
             btn.Click += (s, e) => { if (!running) onClick(); };
+
             parent.Controls.Add(btn);
             allButtons.Add(btn);
             y += 46;
@@ -445,22 +576,23 @@ namespace Rage2Toolkit
         void LogSection(string title)
         {
             Log("");
-            Log(new string('─', 70), C_INFO);
+            Log(new string('-', 70), C_INFO);
             Log("  " + title, C_INFO);
-            Log(new string('─', 70), C_INFO);
+            Log(new string('-', 70), C_INFO);
         }
 
         void LoadConfig()
         {
-            if (!File.Exists(Paths.ConfigFile)) return;
             try
             {
+                if (!File.Exists(Paths.ConfigFile)) return;
                 string[] lines = File.ReadAllLines(Paths.ConfigFile);
-                if (lines.Length > 0) gamePath = lines[0];
-                if (lines.Length > 1) outputPath = lines[1];
+                if (lines.Length > 0) gamePath = lines[0] ?? "";
+                if (lines.Length > 1) outputPath = lines[1] ?? "";
             }
             catch { }
         }
+
         void SaveConfig()
         {
             try { File.WriteAllLines(Paths.ConfigFile, new[] { gamePath ?? "", outputPath ?? "" }); } catch { }
@@ -469,42 +601,94 @@ namespace Rage2Toolkit
         void UpdateStatus()
         {
             if (gamePath.Length > 0 && Directory.Exists(gamePath))
-            { statusGame.Text = "Game: " + gamePath; statusGame.ForeColor = C_OK; }
-            else { statusGame.Text = "Game: (not configured)"; statusGame.ForeColor = C_ERR; }
+            {
+                statusGame.Text = "Game: " + Abbreviate.ShortPath(gamePath, 40);
+                statusGame.ForeColor = C_OK;
+            }
+            else
+            {
+                statusGame.Text = "Game: (not configured)";
+                statusGame.ForeColor = C_ERR;
+            }
 
-            string dll = Path.Combine(Paths.BinDir, "oo2core_7_win64.dll");
-            if (File.Exists(dll)) { statusOodle.Text = "  |  Oodle: present"; statusOodle.ForeColor = C_OK; }
-            else { statusOodle.Text = "  |  Oodle: MISSING"; statusOodle.ForeColor = C_ERR; }
+            if (Oodle.IsLoaded)
+            {
+                statusOodle.Text = "  |  Oodle: loaded";
+                statusOodle.ForeColor = C_OK;
+            }
+            else if (Paths.OodlePresent)
+            {
+                string loaded = Oodle.TryLoad(Paths.OodleDllPath) ? "loaded" : "error";
+                if (Oodle.IsLoaded)
+                {
+                    statusOodle.Text = "  |  Oodle: loaded";
+                    statusOodle.ForeColor = C_OK;
+                }
+                else
+                {
+                    statusOodle.Text = "  |  Oodle: " + loaded;
+                    statusOodle.ForeColor = C_ERR;
+                }
+            }
+            else
+            {
+                statusOodle.Text = "  |  Oodle: MISSING";
+                statusOodle.ForeColor = C_ERR;
+            }
 
             if (outputPath.Length > 0 && Directory.Exists(outputPath))
-            { statusOutput.Text = "  |  Output: " + outputPath; statusOutput.ForeColor = C_OK; }
-            else { statusOutput.Text = "  |  Output: (not configured)"; statusOutput.ForeColor = C_ERR; }
+            {
+                statusOutput.Text = "  |  Output: " + Abbreviate.ShortPath(outputPath, 40);
+                statusOutput.ForeColor = C_OK;
+            }
+            else
+            {
+                statusOutput.Text = "  |  Output: (not configured)";
+                statusOutput.ForeColor = C_ERR;
+            }
         }
 
         void SetButtonsEnabled(bool e) { foreach (Button b in allButtons) b.Enabled = e; }
 
         void DoConfigureGame()
         {
-            using (FolderBrowserDialog dlg = new FolderBrowserDialog())
+            using (OpenFileDialog dlg = new OpenFileDialog())
             {
-                dlg.Description = "Select RAGE 2 installation folder (where RAGE2.exe lives)";
-                dlg.ShowNewFolderButton = false;
-                if (gamePath.Length > 0 && Directory.Exists(gamePath)) dlg.SelectedPath = gamePath;
+                dlg.Title = "Select RAGE2.exe (the game executable)";
+                dlg.Filter = "RAGE 2 executable|RAGE2.exe|Executables|*.exe|All files|*.*";
+                dlg.CheckFileExists = true;
+                dlg.CheckPathExists = true;
+                if (gamePath.Length > 0 && Directory.Exists(gamePath))
+                {
+                    string cand = Path.Combine(gamePath, "RAGE2.exe");
+                    if (File.Exists(cand)) dlg.InitialDirectory = gamePath;
+                }
                 if (dlg.ShowDialog() != DialogResult.OK) return;
 
-                LogSection("CONFIGURE GAME PATH");
-                gamePath = dlg.SelectedPath;
-                if (!File.Exists(Path.Combine(gamePath, "RAGE2.exe")))
+                string sel = dlg.FileName;
+                if (!string.Equals(Path.GetFileName(sel), "RAGE2.exe", StringComparison.OrdinalIgnoreCase))
                 {
-                    Log("[!!] RAGE2.exe not found in: " + gamePath, C_ERR);
-                    Log("     This doesn't look like a RAGE 2 install.", C_WARN);
-                    gamePath = ""; return;
+                    LogSection("CONFIGURE GAME PATH");
+                    Log("[!!] Selected file is not RAGE2.exe", C_ERR);
+                    return;
                 }
+
+                string dir = Path.GetDirectoryName(sel);
+                LogSection("CONFIGURE GAME PATH");
+                gamePath = dir;
                 SaveConfig();
                 Log("[OK] Game path: " + gamePath, C_OK);
 
-                string target = Path.Combine(Paths.BinDir, "oo2core_7_win64.dll");
-                if (File.Exists(target)) { Log("[--] Oodle DLL already cached", C_GRAY); }
+                string target = Paths.OodleDllPath;
+                if (File.Exists(target))
+                {
+                    Log("[--] Oodle DLL already cached", C_GRAY);
+                    if (!Oodle.IsLoaded)
+                    {
+                        if (Oodle.TryLoad(target)) Log("[OK] Oodle loaded from bin/", C_OK);
+                        else Log("[!!] Oodle load failed: " + Oodle.LastError, C_ERR);
+                    }
+                }
                 else
                 {
                     string direct = Path.Combine(gamePath, "oo2core_7_win64.dll");
@@ -512,15 +696,30 @@ namespace Rage2Toolkit
                     if (found == null)
                     {
                         Log("[..] Searching for oo2core_7_win64.dll...", C_WARN);
-                        try { string[] r = Directory.GetFiles(gamePath, "oo2core_7_win64.dll", SearchOption.AllDirectories); if (r.Length > 0) found = r[0]; }
+                        try
+                        {
+                            string[] r = Directory.GetFiles(gamePath, "oo2core_7_win64.dll", SearchOption.AllDirectories);
+                            if (r.Length > 0) found = r[0];
+                        }
                         catch { }
                     }
                     if (found != null)
                     {
-                        File.Copy(found, target, true);
-                        Log("[OK] Copied Oodle DLL from: " + found, C_OK);
+                        try
+                        {
+                            Directory.CreateDirectory(Paths.BinDir);
+                            File.Copy(found, target, true);
+                            Log("[OK] Copied Oodle DLL from: " + found, C_OK);
+                            if (Oodle.TryLoad(target)) Log("[OK] Oodle loaded", C_OK);
+                            else Log("[!!] Oodle load failed: " + Oodle.LastError, C_ERR);
+                        }
+                        catch (Exception ex) { Log("[!!] Copy failed: " + ex.Message, C_ERR); }
                     }
-                    else { Log("[!!] oo2core_7_win64.dll not found in game folder", C_ERR); Log("     Copy it manually to: " + Paths.BinDir, C_WARN); }
+                    else
+                    {
+                        Log("[!!] oo2core_7_win64.dll not found in game folder", C_ERR);
+                        Log("     Copy it manually to: " + Paths.BinDir, C_WARN);
+                    }
                 }
                 UpdateStatus();
             }
@@ -532,9 +731,8 @@ namespace Rage2Toolkit
             {
                 dlg.Description = "Choose where extracted files will be stored";
                 dlg.ShowNewFolderButton = true;
-                string exeFolder = Path.GetDirectoryName(Application.ExecutablePath);
                 if (outputPath.Length > 0 && Directory.Exists(outputPath)) dlg.SelectedPath = outputPath;
-                else if (Directory.Exists(exeFolder)) dlg.SelectedPath = exeFolder;
+                else if (Directory.Exists(Paths.ExeDir)) dlg.SelectedPath = Paths.ExeDir;
                 if (dlg.ShowDialog() != DialogResult.OK) return;
 
                 LogSection("CONFIGURE OUTPUT PATH");
@@ -547,9 +745,12 @@ namespace Rage2Toolkit
 
         void DoExtractAll()
         {
-            if (gamePath.Length == 0 || !Directory.Exists(gamePath)) { LogSection("EXTRACT"); Log("[!!] Configure game path first.", C_ERR); return; }
-            if (outputPath.Length == 0 || !Directory.Exists(outputPath)) { LogSection("EXTRACT"); Log("[!!] Configure output path first.", C_ERR); return; }
-            if (!File.Exists(Path.Combine(Paths.BinDir, "oo2core_7_win64.dll"))) { LogSection("EXTRACT"); Log("[!!] Oodle DLL missing.", C_ERR); return; }
+            if (gamePath.Length == 0 || !Directory.Exists(gamePath))
+            { LogSection("EXTRACT"); Log("[!!] Configure game path first.", C_ERR); return; }
+            if (outputPath.Length == 0 || !Directory.Exists(outputPath))
+            { LogSection("EXTRACT"); Log("[!!] Configure output path first.", C_ERR); return; }
+            if (!Oodle.IsLoaded)
+            { LogSection("EXTRACT"); Log("[!!] Oodle DLL not loaded. Re-configure game path.", C_ERR); return; }
 
             LogSection("EXTRACT ALL .ARC FILES");
             Log("[..] Output: " + outputPath, C_WARN);
@@ -557,30 +758,51 @@ namespace Rage2Toolkit
 
             Task.Run(() =>
             {
-                try { Extractor.ExtractAll(gamePath, outputPath, m => Log(m, C_GRAY)); Log(""); Log("[OK] Extraction complete.", C_OK); }
+                try
+                {
+                    Extractor.ExtractAll(gamePath, outputPath, m => Log(m, C_GRAY));
+                    Log(""); Log("[OK] Extraction complete.", C_OK);
+                }
                 catch (Exception ex) { Log("[!!] " + ex.Message, C_ERR); }
-                finally { this.Invoke(new Action(() => { progress.Style = ProgressBarStyle.Continuous; running = false; SetButtonsEnabled(true); UpdateStatus(); })); }
+                finally
+                {
+                    this.Invoke(new Action(() =>
+                    {
+                        progress.Style = ProgressBarStyle.Continuous;
+                        running = false;
+                        SetButtonsEnabled(true);
+                        UpdateStatus();
+                    }));
+                }
             });
         }
 
         void RunProcess(string exe, string args)
         {
             var psi = new ProcessStartInfo(exe, args);
-            psi.UseShellExecute = false; psi.RedirectStandardOutput = true; psi.RedirectStandardError = true;
-            psi.CreateNoWindow = true; psi.WorkingDirectory = Path.GetDirectoryName(exe);
+            psi.UseShellExecute = false;
+            psi.RedirectStandardOutput = true;
+            psi.RedirectStandardError = true;
+            psi.CreateNoWindow = true;
+            psi.WorkingDirectory = Path.GetDirectoryName(exe);
             var p = Process.Start(psi);
-            p.BeginOutputReadLine(); p.BeginErrorReadLine(); p.WaitForExit();
+            p.BeginOutputReadLine();
+            p.BeginErrorReadLine();
+            p.WaitForExit();
         }
 
         void DoConvertAll()
         {
-            if (outputPath.Length == 0 || !Directory.Exists(outputPath)) { Log("[!!] Configure output path first.", C_ERR); return; }
+            if (outputPath.Length == 0 || !Directory.Exists(outputPath))
+            { Log("[!!] Configure output path first.", C_ERR); return; }
             string[] avtx = Directory.GetFiles(outputPath, "*.avtx", SearchOption.AllDirectories);
             if (avtx.Length == 0) { Log("[!!] No .avtx files found. Extract first.", C_ERR); return; }
 
             LogSection("CONVERT .AVTX TO .DDS");
             Log("[..] Converting " + avtx.Length + " files...", C_WARN);
-            running = true; SetButtonsEnabled(false); progress.Style = ProgressBarStyle.Continuous; progress.Maximum = avtx.Length; progress.Value = 0;
+            running = true; SetButtonsEnabled(false);
+            progress.Style = ProgressBarStyle.Continuous;
+            progress.Maximum = avtx.Length; progress.Value = 0;
             string exe = Path.Combine(Paths.BinDir, "ddscConvert.exe");
 
             Task.Run(() =>
@@ -591,14 +813,29 @@ namespace Rage2Toolkit
                     for (int i = 0; i < avtx.Length; i++)
                     {
                         string f = avtx[i];
-                        try { RunProcess(exe, "\"" + f + "\""); string d = f.Substring(0, f.Length - 5) + ".dds"; if (File.Exists(d) && new FileInfo(d).Length > 0) ok++; else fail++; }
+                        try
+                        {
+                            RunProcess(exe, "\"" + f + "\"");
+                            string d = f.Substring(0, f.Length - 5) + ".dds";
+                            if (File.Exists(d) && new FileInfo(d).Length > 0) ok++; else fail++;
+                        }
                         catch { fail++; }
                         int idx = i;
-                        this.Invoke(new Action(() => { progress.Value = Math.Min(idx + 1, progress.Maximum); if ((idx + 1) % 100 == 0) Log("  ... " + (idx + 1) + " / " + avtx.Length + "  OK: " + ok + "  Fail: " + fail, C_GRAY); }));
+                        this.Invoke(new Action(() =>
+                        {
+                            progress.Value = Math.Min(idx + 1, progress.Maximum);
+                            if ((idx + 1) % 100 == 0) Log("  ... " + (idx + 1) + " / " + avtx.Length + "  OK: " + ok + "  Fail: " + fail, C_GRAY);
+                        }));
                     }
                     Log(""); Log("[OK] Converted: " + ok + "  Failed: " + fail, C_OK);
                 }
-                finally { this.Invoke(new Action(() => { progress.Value = 0; running = false; SetButtonsEnabled(true); })); }
+                finally
+                {
+                    this.Invoke(new Action(() =>
+                    {
+                        progress.Value = 0; running = false; SetButtonsEnabled(true);
+                    }));
+                }
             });
         }
 
@@ -631,7 +868,11 @@ namespace Rage2Toolkit
             Log(""); Log("  SDR (BC1/3/5): " + sdr, C_OK);
             Log("  HDR (BC6H)   : " + hdr, hdr > 0 ? C_WARN : C_GRAY);
             if (invalid > 0) Log("  Invalid      : " + invalid, C_ERR);
-            if (hdr > 0) { Log(""); Log("  [!] " + hdr + " HDR files cannot be edited by Paint.NET/SD.", C_WARN); Log("      Normalize with texconv -f BC3_UNORM before editing.", C_WARN); }
+            if (hdr > 0)
+            {
+                Log(""); Log("  [!] " + hdr + " HDR files cannot be edited by Paint.NET/SD.", C_WARN);
+                Log("      Normalize with texconv -f BC3_UNORM before editing.", C_WARN);
+            }
         }
 
         void DoClassify()
@@ -677,7 +918,12 @@ namespace Rage2Toolkit
                 string[] all = Directory.GetFiles(outputPath, "*.*", SearchOption.AllDirectories);
                 Log("  Total files: " + all.Length, C_INFO);
                 var counts = new Dictionary<string, int>();
-                foreach (string f in all) { string e = Path.GetExtension(f).ToLower(); if (!counts.ContainsKey(e)) counts[e] = 0; counts[e]++; }
+                foreach (string f in all)
+                {
+                    string e = Path.GetExtension(f).ToLower();
+                    if (!counts.ContainsKey(e)) counts[e] = 0;
+                    counts[e]++;
+                }
                 var list = new List<KeyValuePair<string, int>>(counts);
                 list.Sort((a, b) => b.Value.CompareTo(a.Value));
                 Log("");
@@ -689,7 +935,8 @@ namespace Rage2Toolkit
         void DoDeploy()
         {
             LogSection("DEPLOY TO DROPZONE");
-            if (gamePath.Length == 0 || !Directory.Exists(gamePath)) { Log("[!!] Configure game path first.", C_ERR); return; }
+            if (gamePath.Length == 0 || !Directory.Exists(gamePath))
+            { Log("[!!] Configure game path first.", C_ERR); return; }
 
             string source;
             using (FolderBrowserDialog dlg = new FolderBrowserDialog())
@@ -714,12 +961,14 @@ namespace Rage2Toolkit
                 int idx = json.IndexOf("\"name_to_hash\"");
                 if (idx >= 0)
                 {
-                    int s = json.IndexOf('{', idx); int en = json.IndexOf('}', s);
+                    int s = json.IndexOf('{', idx);
+                    int en = json.IndexOf('}', s);
                     if (s >= 0 && en > s)
                     {
                         foreach (string pair in json.Substring(s + 1, en - s - 1).Split(','))
                         {
-                            int c = pair.IndexOf(':'); if (c < 0) continue;
+                            int c = pair.IndexOf(':');
+                            if (c < 0) continue;
                             string k = pair.Substring(0, c).Trim().Trim('"').Replace("\\\\", "\\");
                             string v = pair.Substring(c + 1).Trim().Trim('"');
                             n2h[k] = v;
@@ -733,7 +982,9 @@ namespace Rage2Toolkit
             string[] dds = Directory.GetFiles(source, "*.dds", SearchOption.AllDirectories);
             Log("[..] Deploying " + dds.Length + " files...", C_WARN);
 
-            running = true; SetButtonsEnabled(false); progress.Style = ProgressBarStyle.Continuous; progress.Maximum = dds.Length; progress.Value = 0;
+            running = true; SetButtonsEnabled(false);
+            progress.Style = ProgressBarStyle.Continuous;
+            progress.Maximum = Math.Max(1, dds.Length); progress.Value = 0;
             string exe = Path.Combine(Paths.BinDir, "ddscConvert.exe");
             int dep = 0, noHash = 0, fail = 0;
 
@@ -746,7 +997,7 @@ namespace Rage2Toolkit
                         string f = dds[i];
                         string bn = Path.GetFileNameWithoutExtension(f);
                         string h = null;
-                        if (bn.Length == 16 && System.Text.RegularExpressions.Regex.IsMatch(bn, "^[0-9A-Fa-f]{16}$")) h = bn.ToUpper();
+                        if (bn.Length == 16 && Regex.IsMatch(bn, "^[0-9A-Fa-f]{16}$")) h = bn.ToUpper();
                         else
                         {
                             string rel = f.Substring(source.Length).TrimStart('\\').Replace("\\", "/");
@@ -767,155 +1018,49 @@ namespace Rage2Toolkit
                         int idx = i;
                         this.Invoke(new Action(() => { progress.Value = Math.Min(idx + 1, progress.Maximum); }));
                     }
-                    Log(""); Log("  Deployed : " + dep, C_OK); Log("  Skipped  : " + noHash, C_WARN); Log("  Failed   : " + fail, C_ERR);
+                    Log("");
+                    Log("  Deployed : " + dep, C_OK);
+                    Log("  Skipped  : " + noHash, C_WARN);
+                    Log("  Failed   : " + fail, C_ERR);
                     Log("  Location : " + dropzone, C_INFO);
-                    Log(""); Log("  Steam/Epic launch options:", C_WARN);
+                    Log("");
+                    Log("  Steam/Epic launch options:", C_WARN);
                     Log("    --vfs-fs dropzone --vfs-archive archives_win64 --vfs-archive patch_win64 --vfs-archive dlc_win64 --vfs-fs", C_GRAY);
                 }
-                finally { this.Invoke(new Action(() => { progress.Value = 0; running = false; SetButtonsEnabled(true); })); }
+                finally
+                {
+                    this.Invoke(new Action(() =>
+                    {
+                        progress.Value = 0; running = false; SetButtonsEnabled(true);
+                    }));
+                }
             });
         }
 
         void DoOpenOutput()
         {
-            if (outputPath.Length > 0 && Directory.Exists(outputPath)) Process.Start("explorer.exe", outputPath);
-            else Log("[!!] Output folder not configured.", C_ERR);
-        }
-
-        void ShowHelp()
-        {
-            Form h = new Form();
-            h.Text = "RAGE 2 Modding - How to";
-            h.ClientSize = new Size(900, 720);
-            h.StartPosition = FormStartPosition.CenterParent;
-            h.BackColor = C_BG;
-            h.ForeColor = Color.White;
-            h.Font = new Font("Segoe UI", 10);
-            h.Icon = SystemIcons.Application;
-            h.HandleCreated += (s, e) => { try { int v = 1; DwmSetWindowAttribute(h.Handle, 20, ref v, 4); DwmSetWindowAttribute(h.Handle, 19, ref v, 4); } catch { } };
-
-            RichTextBox r = new RichTextBox();
-            r.Dock = DockStyle.Fill;
-            r.BackColor = C_HEAD;
-            r.ForeColor = Color.White;
-            r.Font = new Font("Consolas", 10);
-            r.ReadOnly = true;
-            r.BorderStyle = BorderStyle.None;
-            r.WordWrap = true;
-            h.Controls.Add(r);
-
-            r.Text = string.Join("\n", new[] {
-                "RAGE 2 MODDING TOOLKIT — USER GUIDE",
-                "════════════════════════════════════════════════════════════════",
-                "",
-                "STEP 1 — CONFIGURE GAME PATH",
-                "────────────────────────────",
-                "   Click \"Configure game path\" and select your RAGE 2 folder",
-                "   (the one that contains RAGE2.exe).",
-                "",
-                "   The toolkit will automatically locate and copy the required",
-                "   Oodle runtime library (oo2core_7_win64.dll) from the game",
-                "   folder. You only need to do this once.",
-                "",
-                "STEP 2 — CONFIGURE OUTPUT PATH",
-                "──────────────────────────────",
-                "   Click \"Configure output path\" and choose where extracted",
-                "   files will be stored. The toolkit needs ~25 GB free there.",
-                "",
-                "STEP 3 — EXTRACT GAME ASSETS",
-                "────────────────────────────",
-                "   Click \"Extract All .arc files\". Extracts roughly 14,000",
-                "   files from the game's archives. Takes ~30 seconds.",
-                "",
-                "STEP 4 — CONVERT TEXTURES",
-                "─────────────────────────",
-                "   Click \"Convert .avtx to .dds\". Converts the game's texture",
-                "   format to standard DDS files editable in Paint.NET, GIMP,",
-                "   Photoshop, or Stable Diffusion / Chainner.",
-                "",
-                "STEP 5 — ORGANIZE",
-                "─────────────────",
-                "   Click \"Classify all files\" to sort content by type into",
-                "   subfolders (textures, audio, video, ui, data, etc.).",
-                "",
-                "   Click \"Full file summary\" for statistics on everything",
-                "   extracted.",
-                "",
-                "STEP 6 — MODIFY (external tools)",
-                "────────────────────────────────",
-                "   Textures   : upscale with Stable Diffusion or Chainner.",
-                "                Keep output as BC3_UNORM (albedo) or",
-                "                BC5_UNORM (normal maps).",
-                "",
-                "   Audio      : use fsbext or vgmstream for FSB5 files.",
-                "   Video      : use RAD Video Tools for Bink files.",
-                "   UI         : use JPEXS Free Flash Decompiler for .gfx.",
-                "",
-                "STEP 7 — DEPLOY TO DROPZONE",
-                "───────────────────────────",
-                "   Click \"Deploy to dropzone\".",
-                "",
-                "   Creates a dropzone\\ folder next to RAGE2.exe and copies",
-                "   modified files there using their original hash filenames.",
-                "",
-                "   The game reads loose files from dropzone without needing",
-                "   to repack the .arc archives.",
-                "",
-                "STEP 8 — LAUNCH WITH DROPZONE",
-                "─────────────────────────────",
-                "   In Steam or Epic, edit RAGE 2's launch options and paste",
-                "   the following as a single line:",
-                "",
-                "   --vfs-fs dropzone --vfs-archive archives_win64",
-                "   --vfs-archive patch_win64 --vfs-archive dlc_win64 --vfs-fs",
-                "",
-                "VALIDATION",
-                "──────────",
-                "   Use \"Validate files\" before deploying to check format",
-                "   problems:",
-                "",
-                "   • DDS  : detects BC1 / BC3 / BC5 (SDR) vs BC6H / BC7 (HDR)",
-                "   • Video: verifies Bink signature (BIK / KB2)",
-                "   • Audio: verifies OggS, RIFF, FSB5 signatures",
-                "",
-                "TROUBLESHOOTING",
-                "───────────────",
-                "   \"Game NOT FOUND\"",
-                "       Re-run Configure game path and select the folder",
-                "       that contains RAGE2.exe.",
-                "",
-                "   \"Oodle MISSING\"",
-                "       Auto-copy failed. Manually copy oo2core_7_win64.dll",
-                "       from your game folder into: " + Paths.BinDir,
-                "",
-                "   \"Extract failed\"",
-                "       Check the log for the failing archive. Verify that",
-                "       your game installation is complete and not corrupted.",
-                "",
-                "   Game crashes with mods",
-                "       Remove the dropzone\\ folder and try again with fewer",
-                "       files to identify which one is causing the issue.",
-                "",
-                "SUPPORT",
-                "───────",
-                "   Nexus Mods : https://www.nexusmods.com/profile/Kry0genik",
-                "   GitHub     : https://github.com/shTNT",
-                ""
-            });
-            h.ShowDialog();
+            if (outputPath.Length > 0 && Directory.Exists(outputPath))
+                Process.Start("explorer.exe", outputPath);
+            else
+                Log("[!!] Output folder not configured.", C_ERR);
         }
 
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
             if (running)
             {
-                var r = MessageBox.Show("An operation is still running.\n\nClose anyway?", "Operation in progress", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+                var r = MessageBox.Show(
+                    "An operation is still running.\n\nClose anyway?",
+                    "Operation in progress", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
                 if (r != DialogResult.Yes) { e.Cancel = true; return; }
             }
             base.OnFormClosing(e);
         }
     }
 
+    // ============================================================
+    // Program
+    // ============================================================
     static class Program
     {
         [DllImport("user32.dll")]
@@ -924,17 +1069,20 @@ namespace Rage2Toolkit
         [STAThread]
         public static void Main()
         {
+            // Wire crash handler ANTES de cualquier otra cosa para capturar todo
+            try { CrashHandler.Install(); } catch { }
+
             try { SetProcessDPIAware(); } catch { }
-            try { Paths.EnsureAll(); Embedded.ExtractAll(); }
-            catch (Exception ex) { MessageBox.Show("Startup error: " + ex.Message, "RAGE 2 Toolkit"); return; }
+            try { Paths.EnsureAll(); } catch { }
+
+            // v2.0: Oodle NUNCA debe quedar en disco entre sesiones. Si existe
+            // (residuo de crash/kill), borrarlo al arrancar. Se autocopia desde el
+            // juego al seleccionar RAGE2.exe.
+            try { if (File.Exists(Paths.OodleDllPath)) File.Delete(Paths.OodleDllPath); } catch { }
+
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new HomeForm());
         }
     }
 }
-
-
-
-
-
