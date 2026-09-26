@@ -39,3 +39,6 @@ src/obj/
 # Backups locales
 *.bak_*
 *.bak
+
+# Backup folders created during sync
+_backup_src_*
