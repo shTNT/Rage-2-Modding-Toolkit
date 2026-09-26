@@ -1,255 +1,236 @@
-## What's new in v2.0.3 (2026-09-26)
+<div align="center">
 
-**Feature release.** New asset browser tree, descriptive extract filenames, sRGB-aware conversion, and a 92.85% filelist (up from 91.58%).
+# RAGE 2 Modding Toolkit
 
-### Asset browser tree — 4 levels instead of 3
+**Extract, convert, organize and deploy modded assets for RAGE 2.**
 
-The browse & extract tree now organizes assets as:
+*No Python. No setup. Single-file Windows executable.*
 
-**Category > Entity > Resource type > Asset**
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Platform: Windows 10/11](https://img.shields.io/badge/Platform-Windows%2010%2F11-0078D6.svg)]()
+[![.NET 8](https://img.shields.io/badge/.NET-8.0-512BD4.svg)]()
+[![Release](https://img.shields.io/github/v/release/shTNT/Rage-2-Modding-Toolkit?color=brightgreen&label=release)](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases/latest)
+[![Filelist](https://img.shields.io/badge/filelist-92.85%25-success.svg)](data/filelist.txt)
+[![Downloads](https://img.shields.io/github/downloads/shTNT/Rage-2-Modding-Toolkit/total?color=orange&label=downloads)](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases)
 
-For example: `WEAPONS > ark_assault > textures > ark_assault_dif.atx1`. Previously textures were buried under `MODELS` because the tree grouped by the first path segment. New tree uses `data/type_map_v2.json` with 12 semantic categories (WEAPONS, CHARACTERS, VEHICLES, ENVIRONMENT, AUDIO, UI, SCRIPTS, ANIMATIONS, EFFECTS, VIDEOS, DLC, UNCATEGORIZED).
+[Download latest](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases/latest) &nbsp;·&nbsp; [Filelist](data/filelist.txt) &nbsp;·&nbsp; [Methods](filelist/methods.txt) &nbsp;·&nbsp; [Issues](https://github.com/shTNT/Rage-2-Modding-Toolkit/issues)
 
-### Descriptive filenames on extract
-
-Extracted files are now named `<descriptive>_<HASH16>.<ext>` instead of just `<HASH16>.<ext>`.
-
-- Before: `4E37BD8EAD14BEA2.atx1`
-- After:  `ark_assault_dif_4E37BD8EAD14BEA2.atx1`
-
-The repack wizard parses both formats: the trailing 16-hex hash is extracted by regex, everything before is ignored. Backward compatible with files extracted by older versions.
-
-### sRGB-aware texture conversion
-
-When converting DDS/DDSC to PNG, the toolkit now picks the correct sRGB flags based on PBR suffix:
-
-- `_dif`, `_emc`, `_albedo`, `_color` → `-srgbi -srgbo -f R8G8B8A8_UNORM_SRGB` (color-accurate)
-- `_nrm`, `_mpm`, `_dtm`, `_msk` → linear (BC7_UNORM)
-
-Previously all textures were converted linear, causing albedo maps to appear washed-out.
-
-### Convert dropdown in the browser
-
-The Single Extract browser now has a `Convert to editable` checkbox with a format dropdown (`PNG / DDS / OGG / WAV`). When checked, extracted assets are automatically converted to the selected format:
-
-- Textures (`.ddsc`, `.avtx`) → `PNG` or `DDS`
-- Audio (`.mp3`, `.wav`, `.flac`) → `OGG`
-
-The dropdown auto-selects a sensible default based on the currently selected asset type.
-
-### Extract cleanup
-
-Intermediate files (`.ddsc`, `.avtx`, `.dds`, `__tmp_rev` staging folder) are deleted after a successful conversion. Only the final editable file remains.
-
-### Unknown extension fallback
-
-When the extractor cannot identify a file's format from its magic bytes (common for BC1 raw blobs like `.atx1`), it now falls back to the extension from the filelist path instead of writing `.unknown`. Files are no longer mislabeled.
-
-### Classify coverage expanded
-
-- `.modelc`, `.epe`, `.epeb`, `.epeo` — recognized as native (model/entity containers)
-- `.atx1..9` — flagged as `raw BC1 mip blob (no descriptor sibling, not editable)` when appropriate, based on REDxEYE's confirmation that these are raw data blobs without dimensions or pixel format metadata
-
-### Alphabetical sort after extract
-
-Extracted files are re-sorted alphabetically at the end of the extraction pass. Reduces visual entropy in the output folder; Windows Explorer displays them in order rather than in arbitrary write order.
-
-### Fixed: crash on tree selection
-
-`tree.AfterSelect` handler was being attached to a null reference in the constructor. Now attached after the `TreeView` is instantiated.
-
-### Filelist: 92.85% coverage (was 91.58%)
-
-- **36,695 / 39,519** gameplay hashes verified (up from 36,192)
-- **+503** new hashes recovered via corpus-wide string mining
-- **methods.txt v2.0** documents all 26 methods used and 19 dead ends
-
-The 2,824 remaining orphans are not reachable via static analysis; verified empirically by ~55 billion candidate tests across 15+ tools.
-
-### Compatibility
-
-Backward compatible with mods created by v1.3.x and v2.0.x. Extracted files from older versions (`<HASH>.<ext>`) continue to work — the repack parser accepts both naming schemes.
+</div>
 
 ---
 
-## What's new in v2.0.2 (2026-09-26)
+## What is this?
 
-Repack writer hotfix. Two format-level bugs were silently hanging the game
-on load after installing a modified `.arc`. Both were invisible from SHA
-comparison and only surfaced during an in-game test.
+Portable Windows GUI that **extracts**, **edits**, **repacks** and **deploys** RAGE 2 assets.
 
-- **Block table sentinel.** The writer was emitting a block table without
-  the terminating `FFFFFFFF FFFFFFFF` entry. The engine computes the file
-  table offset as `0x20 + block_count * 8`; without the sentinel,
-  `block_count` was one short and the engine read the first file entry as
-  if it were part of the block table.
-- **File entries sorted by hash.** The engine performs a binary search on
-  the file table by hash. The writer was emitting entries in physical-offset
-  order, so binary search returned wrong results and the game hung looking
-  for the archive index.
+> Drop a `.arc` in, get assets out. Edit. Repack. Mod.
 
-Validation: round-trip with zero changes now produces a `.tab` that is
-byte-identical to the original (SHA256 match). Verified with a single
-`.atx1` texture replacement on `game8.arc`: game boots, menu loads, save
-loads, replaced texture visible.
-## What's new in v2.0.1 (2026-09-25)
+No Python, no virtual environments, no IDE. Just one `.exe` plus a couple of bundled converter tools.
 
-Small hotfix on top of v2.0.0.
+---
 
-- **SingleExtractForm search by hash.** Typing a 16-hex hash (e.g.
-  `4E37BD8EAD14BEA2`) now returns the matching asset. Before this fix
-  the searcher only looked at the path, so hash lookups returned 0
-  results even when the file was in the archive.
-- **type_map.json regenerated** with the full **39,519 hashes**.
-  Previous builds shipped a truncated type_map (arrays capped at 500
-  entries per game while `total` still claimed 39,519). The asset
-  browser now shows all 39,519 hashes instead of 20,353.
+## Quick Start
 
-## What's new in v2.0.0 (2026-09-25)
+1. **Download** [the latest release](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases/latest)
+2. **Extract** the `.7z` anywhere you want (Desktop, `D:\`, wherever)
+3. **Launch** `RAGE2Toolkit.exe`
+4. **Browse** your RAGE 2 install folder when prompted
+5. **Extract** → edit → **Mod & Repack** → play
 
-- **Extractor 10x faster.** 46 archives / 39,519 files / 61.66 GB in
-  ~108 s (was ~20 min). Peak RAM 3.3 GB.
-- **Parallel writer (RepackerCore v5.2).** Oodle Kraken re-compression
-  in parallel, deterministic output, atomic commit.
-- **Asset validators** (14 types) and **converters**
-  (PNG/JPG/BMP/TGA -> DDSC, DDS -> DDSC, MP3/WAV/FLAC -> OGG).
-- **Redesigned drag & drop wizard** with Format & Files Guidelines.
-- **Full filelist in a single** `data/filelist.txt` (36,695 hashes).
+That is it.
 
-### Coverage
+---
 
-**36,695 / 39,519 = 92.85%** of gameplay asset hashes verified.
+## Features at a glance
 
-Localization strings (45,739 unique hashes) are excluded on purpose.
+| Feature | What it does |
+|---------|--------------|
+| **EXTRACT** | Pulls all 39,519 assets out of the 46 `.arc` archives (61.66 GB in ~108 s) |
+| **BROWSE & PICK** | Lazy-loaded tree, 4-level semantic grouping, search by hash or keyword |
+| **CONVERT** | PNG/JPG/TGA → DDSC · DDS → DDSC · MP3/WAV/FLAC → OGG (sRGB-aware) |
+| **MOD & REPACK** | Wizard validates hashes, atomic rebuild, `.original` backup |
+| **INSTALL** | Writes to `archives_win64/`, auto-backup of the original archive |
 
-### Hash algorithm
+---
 
-MurmurHash3 x64 128-bit, seed=0, low 64 bits of h1.
-Test vector: `hash("text/master_eng.stringlookup") = 8453EE3581F31F39`
+## What is new in v2.0.3
 
-> Extract, convert, organize and deploy modded assets for RAGE 2.
+### Asset browser tree v2 — 4 levels
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Platform: Windows](https://img.shields.io/badge/Platform-Windows%2010%2F11-blue)](https://www.microsoft.com/windows)
-[![Version](https://img.shields.io/badge/Version-2.0.2-green)](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases)
-[![VirusTotal](https://img.shields.io/badge/VirusTotal-0%2F71%20clean-brightgreen)](#antivirus--smartscreen)
+The tree now groups by **Category → Entity → Resource type → Asset**:
 
-## What it does
+```
+WEAPONS
+└── ark_assault
+    ├── mesh
+    ├── scripts
+    └── textures
+        ├── ark_assault_dif.atx1
+        ├── ark_assault_nrm.atx1
+        └── ark_assault_mpm.atx1
+```
 
-- **Extracts** all 46 `.arc` archives (initial + supplemental) from RAGE 2 (~39,519 files in ~108 s).
-- **Identifies** files by hash using a community filelist with **92.85% coverage**.
-- **Converts** `.avtx` textures to editable `.dds`.
-- **Organizes** content by type (textures, audio, video, UI, data).
-- **Repacks** modified files back into `.arc` archives that the game loads on launch.
-- **Auto-detects** and copies the required Oodle runtime from your own RAGE 2 install.
+12 semantic categories (WEAPONS, CHARACTERS, VEHICLES, ENVIRONMENT, AUDIO, UI, SCRIPTS, ANIMATIONS, EFFECTS, VIDEOS, DLC, UNCATEGORIZED).
+No more textures buried under `MODELS`.
 
-## Download
+### Descriptive filenames on extract
 
-- **Latest Release**: [RAGE2TOOLKIT-v2.0.2.7z](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases)
-- **SHA-256**: listed on the release page.
+| Before | After |
+|--------|-------|
+| `4E37BD8EAD14BEA2.atx1` | `ark_assault_dif_4E37BD8EAD14BEA2.atx1` |
 
-## Documentation
+The repack wizard parses both formats. Backward compatible with files extracted by older versions.
 
-Full documentation: https://shtnt.github.io/Rage-2-Modding-Toolkit/
+### sRGB-aware texture conversion
 
-- **[How to Use](docs/HOW_TO_USE.md)** - Step-by-step guide.
-- **[Format Reference](docs/FORMAT_REFERENCE.md)** - .arc, .avtx, .ddsc, hashes.
-- **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues.
+Correct color profile per PBR suffix:
+
+| Suffix | Profile |
+|--------|---------|
+| `_dif` `_emc` `_albedo` `_color` | **sRGB** (color-accurate) |
+| `_nrm` `_mpm` `_dtm` `_msk` | **linear** |
+
+No more washed-out albedo maps.
+
+### Convert dropdown in the browser
+
+`[✓] Convert to editable  [PNG ▾]` — PNG / DDS / OGG / WAV. Auto-selects based on the selected asset.
+
+### Extract cleanup
+
+Intermediate files (`.ddsc`, `.avtx`, `.dds`, `__tmp_rev`) are deleted after a successful conversion.
+
+### Unknown extension fallback
+
+When magic detection fails (BC1 raw blobs like `.atx1`), the extractor falls back to the filelist path extension instead of writing `.unknown`.
+
+### Fixed
+
+- Crash on tree selection (`tree.AfterSelect` was attached before the TreeView existed)
+
+### Filelist: 92.85% coverage (was 91.58%)
+
+| Metric | Value |
+|--------|-------|
+| Hashes verified | **36,695 / 39,519** |
+| Coverage | **92.85%** |
+| New hashes this release | **+503** |
+| Remaining orphans | 2,824 (static-analysis ceiling) |
+| Methods documented | 26 working · 19 dead ends |
+
+---
+
+## Previous releases
+
+<details>
+<summary><b>v2.0.2 (2026-09-26)</b> — Repack writer hotfix</summary>
+
+Two format-level bugs silently hanging the game on load:
+
+- **Block table sentinel.** Missing `FFFFFFFF FFFFFFFF` terminator. Engine computed the file table offset one entry short → hang.
+- **File entries sorted by hash.** Engine performs a binary search by hash. The writer emitted physical-offset order → wrong results, hang.
+
+Round-trip now produces a `.tab` byte-identical to the original (SHA256 match). Verified in-game with an `.atx1` replacement on `game8.arc`.
+
+</details>
+
+<details>
+<summary><b>v2.0.1 (2026-09-25)</b> — Search fix + full type_map</summary>
+
+- `SingleExtractForm` search now matches by hash, not only by path
+- `type_map.json` regenerated with all 39,519 hashes (was truncated to 500 per game)
+
+</details>
+
+<details>
+<summary><b>v2.0.0 (2026-09-25)</b> — Major release</summary>
+
+- Extractor **10x faster**: 46 archives / 39,519 files / 61.66 GB in ~108 s
+- Parallel writer (RepackerCore v5.2) with Oodle Kraken re-compression, deterministic output, atomic commit
+- **14 asset validators** + converters (PNG/JPG/BMP/TGA → DDSC, DDS → DDSC, MP3/WAV/FLAC → OGG)
+- Redesigned drag & drop wizard with Format & Files Guidelines
+
+</details>
+
+---
 
 ## Filelist
 
-The full hash-to-path mapping used by the toolkit is published at [data/filelist.txt](data/filelist.txt) - **36,695 entries, 92.85% gameplay coverage**.
+The hash-to-path mapping is published at [`data/filelist.txt`](data/filelist.txt).
 
-The remaining 3,520 entries are:
+| Metric | Value |
+|--------|-------|
+| Entries | **36,695** |
+| Universe | 39,519 gameplay hashes |
+| Coverage | **92.85%** |
+| Localization excluded | 45,739 hashes (separate tree) |
 
-- ~1,449 engine placeholders (byte-identical payloads, no textual path by design)
-- ~116 CFX (proprietary Avalanche UI format)
-- ~63 OggS audio (Vorbis, no metadata)
-- ~7 RTPC manifest containers
-- ~199 Oodle variant failures
-- ~340 AVTX textures without public path names
+**Format:** `<HEX16>` + TAB + `<path>` · UTF-8 no BOM · LF line endings.
 
-Anyone can contribute new mappings by appending to `data/filelist.txt` (one per line, tab-separated).
+Methods documented at [`filelist/methods.txt`](filelist/methods.txt).
 
-## Installation
+---
 
-1. Extract RAGE2TOOLKIT-v2.0.2.7z anywhere.
-2. Run RAGE2Toolkit.exe.
-3. Configure game path and output path.
-4. Extract, convert, modify, deploy.
+## Hash algorithm
 
-## Modifying and repacking
+```
+Algorithm:  MurmurHash3 x64 128-bit
+Input:      path UTF-8, lowercase, forward slashes, no prefix
+Seed:       0
+Output:     h1 (low 64 bits of the 128-bit digest)
+```
 
-After extracting and editing assets:
+**Test vector:**
 
-1. Open the MOD & REPACK wizard in the toolkit.
-2. Select the `.arc` that contains your modified files.
-3. Point the wizard at your edited folder (drag & drop supported).
-4. The toolkit auto-backs up the original `.arc` as `.original` on first install.
-5. The modified archive is written and the game reads it directly on next launch.
+```
+hash("text/master_eng.stringlookup") = 8453EE3581F31F39
+```
 
-Note: modified files are re-compressed with Oodle Kraken in parallel since v2.0.0. Archive size grows only by the size of the modified assets.
+> Implementations using `h2` or XOR of halves produce **0 matches**. Verify with the test vector before assuming paths are wrong.
 
-## Important Notes
+---
 
-- This toolkit does NOT include game assets. You need your own copy of RAGE 2.
-- The Oodle DLL is NOT redistributed. It is auto-copied from your game folder.
-- ~9% of entries remain hash-named (mostly engine placeholders and debug assets without public path names).
+## Requirements
 
-## Antivirus / SmartScreen
+| Item | Details |
+|------|---------|
+| OS | **Windows 10 / 11** (x64) |
+| Game | **RAGE 2 installed** (any distribution) |
+| Disk | ~70 GB free for full extract |
+| RAM | 16 GB recommended (extract peaks at ~3.3 GB) |
 
-VirusTotal: **0/71 clean**.
-Report: https://www.virustotal.com/gui/home/upload
+**No .NET install needed** — the toolkit is self-contained.
 
-If Windows SmartScreen shows a warning, click More info then Run anyway.
+---
 
-## Author
+## Documentation
 
-**Kry0genik**
-- Nexus Mods: https://www.nexusmods.com/profile/Kry0genik
-- GitHub: https://github.com/shTNT
+| File | Contents |
+|------|----------|
+| [`docs/HOW_TO_USE.md`](docs/HOW_TO_USE.md) | First-time workflow |
+| [`docs/FORMAT_REFERENCE.md`](docs/FORMAT_REFERENCE.md) | TAB / AVTX / ATX internals |
+| [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) | Common issues |
+| [`filelist/methods.txt`](filelist/methods.txt) | Filelist build methodology |
+
+---
 
 ## Credits
 
-This toolkit would not exist without the work of others. Where the credit is due:
+Built on top of other open-source projects:
 
-### DECA project - file list and format documentation
+| Project | Use |
+|---------|-----|
+| [DECA](https://github.com/kk49/deca) | Initial 358k path database |
+| [ApexToolset](https://github.com/PredatorCZ/ApexToolset) | `ddscConvert` + `R2SmallArchive` |
+| [DirectXTex](https://github.com/microsoft/DirectXTex) | `texconv` |
 
-The DECA project is the reason extracted files have names at all. Two of their
-contributions are load-bearing for this toolkit:
+Special thanks to the RAGE 2 modding community, and to **REDxEYE** (ApexPredator) for the `.atxN` mipmap family confirmation.
 
-- **`resources/deca/rg2/filelist.txt`** (358,057 entries) - the raw path database
-  used to reverse MurmurHash3 hashes back to real file names. Without this,
-  100% of extracted files would be named `4A3F8C12D5E9B7A1.avtx` style.
-  It is what makes the 92.85% coverage possible.
-- **`python/deca/deca/ff_arc_tab.py`** - a reference parser for the TAB v3.1
-  format. This is the file that documented the multi-block compression layout
-  used by RAGE 2 archives. Without studying this parser, we would not have known
-  how files spanning multiple compression blocks are reassembled. The multi-block
-  handling in our extractor is a direct port of the logic found here, and it
-  accounts for roughly 2,500 additional files recovered beyond the single-block
-  approach.
-
-A significant portion of this toolkit's functionality is derived from DECA's
-reverse engineering work. Any questions about the archive format itself should
-go their way first.
-
-### PredatorCZ (Lukas Cone) - ApexToolset
-
-- **`ddscConvert.exe`** - converts `.avtx` textures to/from `.dds`. GPL v3.
-- **`R2SmallArchive.exe`** - extracts mini-archives (.bl, .ee, .nl, .fl). GPL v3.
-- Source: https://github.com/PredatorCZ/ApexToolset
-
-### Microsoft - DirectXTex
-
-- **`texconv.exe`** - DDS format conversion and mipmap regeneration. MIT.
-- Source: https://github.com/microsoft/DirectXTex
-
-### RAGE 2 modding community
-
-Testing, feedback, format hunting, and years of reverse engineering that no
-single contributor could have done alone.
+---
 
 ## License
 
-MIT - see [LICENSE](LICENSE). Third-party components: see [THIRD_PARTY_NOTICES.txt](THIRD_PARTY_NOTICES.txt).
+MIT. Do whatever you want, just do not blame me if the wasteland breaks.
+
+Oodle (`oo2core_7_win64.dll`) is proprietary (RAD Game Tools) and **is not redistributed**. It is auto-copied from your own game install on first run.
+
