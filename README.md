@@ -35,7 +35,7 @@ No Python, no virtual environments, no IDE. Just one `.exe` plus a couple of bun
 2. **Extract** the `.7z` anywhere you want (Desktop, `D:\`, wherever)
 3. **Launch** `RAGE2Toolkit.exe`
 4. **Browse** your RAGE 2 install folder when prompted
-5. **Extract** → edit → **Mod & Repack** → play
+5. **Extract** -> edit -> **Mod & Repack** -> play
 
 That is it.
 
@@ -47,7 +47,7 @@ That is it.
 |---------|--------------|
 | **EXTRACT** | Pulls all 39,519 assets out of the 46 `.arc` archives (61.66 GB in ~108 s) |
 | **BROWSE & PICK** | Lazy-loaded tree, 4-level semantic grouping, search by hash or keyword |
-| **CONVERT** | PNG/JPG/TGA → DDSC · DDS → DDSC · MP3/WAV/FLAC → OGG (sRGB-aware) |
+| **CONVERT** | PNG/JPG/TGA -> DDSC · DDS -> DDSC · MP3/WAV/FLAC -> OGG (sRGB-aware) |
 | **MOD & REPACK** | Wizard validates hashes, atomic rebuild, `.original` backup |
 | **INSTALL** | Writes to `archives_win64/`, auto-backup of the original archive |
 
@@ -55,9 +55,9 @@ That is it.
 
 ## What is new in v2.0.3
 
-### Asset browser tree v2 — 4 levels
+### Asset browser tree v2 - 4 levels
 
-The tree now groups by **Category → Entity → Resource type → Asset**:
+The tree now groups by **Category -> Entity -> Resource type -> Asset**:
 
 ```
 WEAPONS
@@ -94,7 +94,7 @@ No more washed-out albedo maps.
 
 ### Convert dropdown in the browser
 
-`[✓] Convert to editable  [PNG ▾]` — PNG / DDS / OGG / WAV. Auto-selects based on the selected asset.
+`[X] Convert to editable  [PNG v]` - PNG / DDS / OGG / WAV. Auto-selects based on the selected asset.
 
 ### Extract cleanup
 
@@ -103,6 +103,15 @@ Intermediate files (`.ddsc`, `.avtx`, `.dds`, `__tmp_rev`) are deleted after a s
 ### Unknown extension fallback
 
 When magic detection fails (BC1 raw blobs like `.atx1`), the extractor falls back to the filelist path extension instead of writing `.unknown`.
+
+### Classify coverage expanded
+
+- `.modelc`, `.epe`, `.epeb`, `.epeo` recognized as native model/entity containers
+- `.atx1..9` flagged as raw BC1 mip blob without descriptor
+
+### Alphabetical sort after extract
+
+Extracted files are re-sorted alphabetically at the end of the extraction pass.
 
 ### Fixed
 
@@ -120,35 +129,76 @@ When magic detection fails (BC1 raw blobs like `.atx1`), the extractor falls bac
 
 ---
 
-## Previous releases
+## Release history
 
 <details>
-<summary><b>v2.0.2 (2026-09-26)</b> — Repack writer hotfix</summary>
+<summary><b>v2.0.2</b> (2026-09-26) - Repack writer hotfix</summary>
 
-Two format-level bugs silently hanging the game on load:
+**Repack writer hotfix.** Two format-level bugs were silently hanging the game on load after installing a modified `.arc`. Both were invisible from SHA comparison and only surfaced during an in-game test.
 
-- **Block table sentinel.** Missing `FFFFFFFF FFFFFFFF` terminator. Engine computed the file table offset one entry short → hang.
-- **File entries sorted by hash.** Engine performs a binary search by hash. The writer emitted physical-offset order → wrong results, hang.
+- **Block table sentinel.** The writer was emitting a block table without the terminating `FFFFFFFF FFFFFFFF` entry. The engine computes the file table offset as `0x20 + block_count * 8`; without the sentinel, `block_count` was one short and the engine read the first file entry as if it were part of the block table.
+- **File entries sorted by hash.** The engine performs a binary search on the file table by hash. The writer was emitting entries in physical-offset order, so binary search returned wrong results and the game hung looking for the archive index.
 
-Round-trip now produces a `.tab` byte-identical to the original (SHA256 match). Verified in-game with an `.atx1` replacement on `game8.arc`.
+**Validation:** round-trip with zero changes now produces a `.tab` that is byte-identical to the original (SHA256 match). Verified with a single `.atx1` texture replacement on `game8.arc`: game boots, menu loads, save loads, replaced texture visible.
 
 </details>
 
 <details>
-<summary><b>v2.0.1 (2026-09-25)</b> — Search fix + full type_map</summary>
+<summary><b>v2.0.1</b> (2026-09-25) - Search fix + full type_map</summary>
 
-- `SingleExtractForm` search now matches by hash, not only by path
-- `type_map.json` regenerated with all 39,519 hashes (was truncated to 500 per game)
+Small hotfix on top of v2.0.0.
+
+- **SingleExtractForm search by hash.** Typing a 16-hex hash (e.g. `4E37BD8EAD14BEA2`) now returns the matching asset. Before this fix, the searcher only looked at the path, so hash lookups returned 0 results even when the file was in the archive.
+- **`type_map.json` regenerated** with the full **39,519 hashes**. Previous builds shipped a truncated type_map (arrays capped at 500 entries per game while `total` still claimed 39,519). The asset browser now shows all 39,519 hashes instead of 20,353.
 
 </details>
 
 <details>
-<summary><b>v2.0.0 (2026-09-25)</b> — Major release</summary>
+<summary><b>v2.0.0</b> (2026-09-25) - Major release</summary>
 
-- Extractor **10x faster**: 46 archives / 39,519 files / 61.66 GB in ~108 s
-- Parallel writer (RepackerCore v5.2) with Oodle Kraken re-compression, deterministic output, atomic commit
-- **14 asset validators** + converters (PNG/JPG/BMP/TGA → DDSC, DDS → DDSC, MP3/WAV/FLAC → OGG)
-- Redesigned drag & drop wizard with Format & Files Guidelines
+- **Extractor 10x faster.** 46 archives / 39,519 files / 61.66 GB in ~108 s (was ~20 min). Peak RAM 3.3 GB.
+- **Parallel writer (RepackerCore v5.2).** Oodle Kraken re-compression in parallel, deterministic output, atomic commit.
+- **Asset validators** (14 types) and **converters** (PNG/JPG/BMP/TGA -> DDSC, DDS -> DDSC, MP3/WAV/FLAC -> OGG).
+- **Redesigned drag & drop wizard** with Format & Files Guidelines.
+- **Full filelist in a single** `data/filelist.txt`.
+
+</details>
+
+<details>
+<summary><b>v1.3.1</b> (2026-09-24) - Unified filelist, phantom cleanup</summary>
+
+- **Unified filelist.** Toolkit loads a single `data/filelist.txt` with all hashes, replacing the previous three-file split (base + extra + supplemental).
+- **106 phantom entries removed** from the published filelist (hash/path pairs that did not re-hash correctly). Discovered during a full re-verification pass. Commit `5595818`.
+- Coverage: 35,999 / 39,519 = **91.09%**.
+- Original three sources preserved under `data/sources/` for provenance.
+
+</details>
+
+<details>
+<summary><b>v1.3.0</b> (2026-09-24) - Supplemental universe discovery</summary>
+
+- **Discovered `archives_win64/supplemental/`** - the second universe of 33 archives the community had missed. Zero overlap with `initial/`.
+- Cross-referenced 358,057 paths from the DECA raw filelist against the supplemental universe. Recovered **20,789 new hashes** in one pass.
+- Coverage: 86.74% -> **91.09%** (union of both universes, gameplay hashes only).
+- Toolkit patched to scan both `initial/` and `supplemental/` folders.
+
+</details>
+
+<details>
+<summary><b>v1.2.x</b> (2026-09-24) - Filelist methodology and brute-force</summary>
+
+- **MasterBrute + MasterBruteV3** brute-force tools. Two formats: neighborhood-derived prefixes and filelist direct hashing. **+2,120 hashes**.
+- Discovered a critical **`|` prefix bug** in the DECA filelist parser. Every previous brute-force attempt had been hashing contaminated strings. Fixing it changed everything.
+- **CFX/GFX Scaleform forensic extraction.** Decompiled 114 `.cfx` modules, mined Perforce source paths from the strings. **+224 hashes**.
+- Coverage reached 86.74% at end of this line.
+
+</details>
+
+<details>
+<summary><b>v1.0.0 - v1.1.0</b> (2026-09-23) - First release and first in-game mod</summary>
+
+- **v1.0.0:** Initial public release. Extractor + repacker for `initial/` archives only.
+- **v1.1.0:** First successful in-game mod. A cyan rifle texture (`.atx1` replacement) loaded and rendered correctly. Historical first public `.arc` repack of RAGE 2.
 
 </details>
 
@@ -199,7 +249,7 @@ hash("text/master_eng.stringlookup") = 8453EE3581F31F39
 | Disk | ~70 GB free for full extract |
 | RAM | 16 GB recommended (extract peaks at ~3.3 GB) |
 
-**No .NET install needed** — the toolkit is self-contained.
+**No .NET install needed** - the toolkit is self-contained.
 
 ---
 
