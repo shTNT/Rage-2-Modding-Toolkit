@@ -42,3 +42,6 @@ src/obj/
 
 # Backup folders created during sync
 _backup_src_*
+
+# Backups with block number suffix
+*.bak[0-9]*
