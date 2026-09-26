@@ -53,7 +53,81 @@ That is it.
 
 ---
 
-## What is new in v2.0.3
+## What is new in v2.0.4
+
+### Semantic asset tree v3 - 12 categories, recursive schema
+
+The browser tree is completely redesigned. It groups by meaning, not filesystem:
+
+```
+WEAPONS
+└── ark_assault
+    ├── mesh
+    ├── textures
+    │   ├── base
+    │   └── skins
+    │       └── unicorn
+    └── scripts
+```
+
+**12 top-level categories:** ANIMATIONS, AUDIO, CHARACTERS, DEFINITIONS, EFFECTS, ENVIRONMENT, GAME LOGIC, UI, UNCATEGORIZED, VEHICLES, VIDEOS, WEAPONS. All **39,519** hashes organized.
+
+### Two critical race conditions fixed
+
+**#1 - Shared memory-mapped accessor.** The `MemoryMappedViewAccessor` used to read `.arc` files was shared between parallel worker threads. `ReadArray` is not thread-safe. Result: 145 of 236 extractions randomly failed per run, different assets each time. Fix: one accessor per thread.
+
+**#2 - Shared temp directory.** All parallel conversions shared the same `__tmp_rev` folder. When one thread finished, it deleted the folder another thread was using. Result: 61 of 128 texture conversions randomly failed with silent data loss. Fix: unique GUID suffix per conversion.
+
+### Batch extraction - ~5 seconds per entity
+
+Extracting 236 assets from a single entity now takes about 5 seconds (was minutes). New `ExtractMany` batches all requests per archive and parallelizes decompression.
+
+### Smart extract prompt
+
+`Extract Selected` now shows a breakdown before running:
+
+```
+236 asset(s)
+  224 texture(s) -> PNG editable
+   12 native asset(s) -> copied as-is
+[ Convert & Extract ]  [ Extract raw only ]  [ Cancel ]
+```
+
+### Conversion preferences (gear icon)
+
+Configure how the toolkit converts before extracting. Settings persist across sessions.
+
+| Setting | Options |
+|---------|---------|
+| Texture resolution | 1024 (DDSC/AVTX) · 2048 (ATX1) |
+| Texture output | PNG · DDS |
+| Audio output | Keep · WAV · OGG |
+
+### Search by extension
+
+Type `.ddsc`, `.atx1`, `*.ogg` in the search box to filter by exact extension. Keyword and hash search still work as before.
+
+### Per-entity output folders
+
+Extracted assets are organized into folders by entity name (`ark_assault/`, `goon_squad/`) instead of a flat directory. Raw mode keeps everything.
+
+### Other fixes
+
+- **Silent data loss on conversion failure:** `.ddsc` / `.avtx` were deleted even when the conversion failed. Cleanup now preserves the original when no output is produced.
+- **Wrong extension for mesh files:** `.hrmeshc` / `.meshc` were exported as `.adf`. Filelist now takes precedence over magic detection.
+- **Residual temp folders:** `__atxtmp` was left behind after conversion. Now recursively deleted.
+- **Dark dialogs:** warnings and confirmations use the toolkit dark theme consistently.
+
+### Verification
+
+Tested on 6 different archives (`game0`, `game3`, `game8`, `game10`, `game11`, `game12`) — **10,488 files, 0 failures.** Round-trip byte-identical, replace byte-perfect, multi-pass x5 deterministic, baseline 46/46 intact.
+
+---
+
+## Release history
+
+<details>
+<summary><b>v2.0.3</b> (2026-09-26) - Asset browser tree v2, descriptive filenames, sRGB</summary>
 
 ### Asset browser tree v2 - 4 levels
 
@@ -127,9 +201,7 @@ Extracted files are re-sorted alphabetically at the end of the extraction pass.
 | Remaining orphans | 2,824 (static-analysis ceiling) |
 | Methods documented | 26 working · 19 dead ends |
 
----
-
-## Release history
+</details>
 
 <details>
 <summary><b>v2.0.2</b> (2026-09-26) - Repack writer hotfix</summary>
