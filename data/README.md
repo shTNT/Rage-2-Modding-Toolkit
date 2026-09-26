@@ -1,10 +1,10 @@
 # Filelist
 
-`filelist.txt` - 36,192 verified hashes mapping 64-bit asset hashes to their original engine paths. Single unified database, deduplicated at hash level.
+`filelist.txt` - 36,695 verified hashes mapping 64-bit asset hashes to their original engine paths. Single unified database, deduplicated at hash level.
 
 ## Coverage
 
-**36,192 / 39,519 = 91.58%** of gameplay asset hashes have a verified path.
+**36,695 / 39,519 = 92.85%** of gameplay asset hashes have a verified path.
 
 The original three sources (DECA base, initial extras, supplemental) are preserved under `sources/` for documentation only. The toolkit loads only `filelist.txt`.
 

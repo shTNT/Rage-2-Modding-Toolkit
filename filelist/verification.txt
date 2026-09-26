@@ -1,83 +1,41 @@
 ================================================================================
 RAGE 2 FILELIST - VERIFICATION REPORT
 ================================================================================
-Generated:       2026-09-24 15:23:39
+
+Generated:       2026-09-26 17:27:30
 Filelist:        filelist.txt
-Total entries:   36192
-Unique hashes:   36192
-Unique paths:    36192
+Total entries:   36,695
+Universe total:  39,519 (gameplay, no localization)
+Coverage:        92.85%
 
 ================================================================================
-METHOD
-================================================================================
-For every entry:
-  1. Recompute MurmurHash3_x64_128(path, seed=0), compare to stored hash.
-  2. Confirm the stored hash exists in a game .tab file.
-A mismatch in step 1 = fabricated or corrupted entry.
-A failure in step 2 = hash not present in any game archive.
-
-================================================================================
-RESULTS
+VERIFICATION METHOD
 ================================================================================
 
-Step 1 - Hash verification (re-hash):
-  OK:        36192 / 36192  (100,00%)
-  Mismatch:  0
+Each line in the filelist is verified as follows:
 
-Step 2 - .tab membership:
-  In initial only:      14461
-  In supplemental only: 21540
-  In both:              0
-  In neither (ghost):   0
-
-OVERALL VERDICT: PASS
-Every entry re-hashes to its stored hash and exists in a game archive.
-This filelist is NOT snake oil.
+  1. Parse <HEX16>\t<path>
+  2. Recompute MurmurHash3_x64_128(path, seed=0).h1
+  3. Compare recomputed hash to HEX16 (must match exactly)
+  4. Look up HEX16 in the union of initial + supplemental .tab files
 
 ================================================================================
-SAMPLE ENTRIES (12 systematic samples)
+RESULT
 ================================================================================
 
-  #   Stored hash       Computed hash     Match    In .tab   Path
-  --  ----------------  ----------------  -------  --------  ----
-   1  0EA3E1076645BA88  0EA3E1076645BA88  OK       init      editor/entities/gameplayprops/loot_containers/expentities...
-   2  76B48D9F4B8F5A3D  76B48D9F4B8F5A3D  OK       supp      models/characters/abadon_muties/small/smallmuties_01/text...
-   3  68130D3287EEC753  68130D3287EEC753  OK       init      models/props/bathtub/01_base_mpm.atx1
-   4  D5F6C09DEEFB170D  D5F6C09DEEFB170D  OK       init      models/weapons/ark_assault/textures/roses_tiled/ark_assau...
-   5  D6A8CB04D87C43D5  D6A8CB04D87C43D5  OK       init      sound/fmod_banks/gunbarrel_bar_stream.fmod_sbankc
-   6  244BD2F9C7A6A4A2  244BD2F9C7A6A4A2  OK       init      terrain/heatwave/occluder/patch_09_38_26.streampatch
-   7  56BF9AD8D4EE53C2  56BF9AD8D4EE53C2  OK       supp      terrain/heatwave/patches/width_3/patch_09_21_18.streampatch
-   8  392A29F423228E8C  392A29F423228E8C  OK       supp      terrain/heatwave/patches/width_4/patch_09_04_10.streampatch
-   9  EF4D1964F7C54D7A  EF4D1964F7C54D7A  OK       supp      terrain/heatwave/patches/width_4/patch_09_51_02.streampatch
-  10  30C79D28554FB682  30C79D28554FB682  OK       supp      terrain/heatwave/patches/width_8/patch_09_33_58.streampatch
-  11  BA0B0CF5B86E63D6  BA0B0CF5B86E63D6  OK       supp      terrain/heatwave/patches/width_8/patch_11_03_02.streampatch
+  OK:          36,695
+  Mismatch:    0
+  Ghost:       0 (in filelist but not in any .tab)
+  Duplicates:  0
 
 ================================================================================
-COVERAGE
+CHANGELOG
 ================================================================================
 
-Excludes localization strings (45,739 unique hashes in a separate tree).
-
-PLAYABLE GAMEPLAY ASSETS (initial + supplemental, no localization):
-  Initial:      14461 / 16385 = 88,25%
-  Supplemental: 21540 / 23134 = 93,11%
-  Union:        36192 / 39519 = 91,58%
-
-If you naively include the localization tree (which is not needed for
-asset modding), coverage drops to 42.22%. That number is misleading.
-The correct denominator for "how many gameplay assets have names" is
-the one above.
+2026-09-24  Initial verification: 36,192 entries (91.58%)
+2026-09-26  Added 503 hashes via static sweep (string tables + mutations)
+2026-09-26  Re-verification: 36,695 entries (92.85%) - all OK
 
 ================================================================================
-REPRODUCE
-================================================================================
-
-  Algorithm:  MurmurHash3 x64 128-bit, seed=0, low 64 bits of h1
-  Test vector: hash("text/master_eng.stringlookup") = 8453EE3581F31F39
-
-  Any standard MurmurHash3_x64_128 implementation with seed=0 will work.
-  Take the first 64 bits of the 128-bit digest (h1), not h2.
-
-================================================================================
-END OF REPORT
+END
 ================================================================================

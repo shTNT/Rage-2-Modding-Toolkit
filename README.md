@@ -42,11 +42,11 @@ Small hotfix on top of v2.0.0.
 - **Asset validators** (14 types) and **converters**
   (PNG/JPG/BMP/TGA -> DDSC, DDS -> DDSC, MP3/WAV/FLAC -> OGG).
 - **Redesigned drag & drop wizard** with Format & Files Guidelines.
-- **Full filelist in a single** `data/filelist.txt` (36,192 hashes).
+- **Full filelist in a single** `data/filelist.txt` (36,695 hashes).
 
 ### Coverage
 
-**36,192 / 39,519 = 91.58%** of gameplay asset hashes verified.
+**36,695 / 39,519 = 92.85%** of gameplay asset hashes verified.
 
 Localization strings (45,739 unique hashes) are excluded on purpose.
 
@@ -65,7 +65,7 @@ Test vector: `hash("text/master_eng.stringlookup") = 8453EE3581F31F39`
 ## What it does
 
 - **Extracts** all 46 `.arc` archives (initial + supplemental) from RAGE 2 (~39,519 files in ~108 s).
-- **Identifies** files by hash using a community filelist with **91.58% coverage**.
+- **Identifies** files by hash using a community filelist with **92.85% coverage**.
 - **Converts** `.avtx` textures to editable `.dds`.
 - **Organizes** content by type (textures, audio, video, UI, data).
 - **Repacks** modified files back into `.arc` archives that the game loads on launch.
@@ -86,7 +86,7 @@ Full documentation: https://shtnt.github.io/Rage-2-Modding-Toolkit/
 
 ## Filelist
 
-The full hash-to-path mapping used by the toolkit is published at [data/filelist.txt](data/filelist.txt) - **36,192 entries, 91.58% gameplay coverage**.
+The full hash-to-path mapping used by the toolkit is published at [data/filelist.txt](data/filelist.txt) - **36,695 entries, 92.85% gameplay coverage**.
 
 The remaining 3,520 entries are:
 
@@ -149,7 +149,7 @@ contributions are load-bearing for this toolkit:
 - **`resources/deca/rg2/filelist.txt`** (358,057 entries) - the raw path database
   used to reverse MurmurHash3 hashes back to real file names. Without this,
   100% of extracted files would be named `4A3F8C12D5E9B7A1.avtx` style.
-  It is what makes the 91.58% coverage possible.
+  It is what makes the 92.85% coverage possible.
 - **`python/deca/deca/ff_arc_tab.py`** - a reference parser for the TAB v3.1
   format. This is the file that documented the multi-block compression layout
   used by RAGE 2 archives. Without studying this parser, we would not have known

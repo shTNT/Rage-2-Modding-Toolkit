@@ -1,4 +1,16 @@
-# CHANGELOG — RAGE2Toolkit
+# CHANGELOG - RAGE2Toolkit
+
+## [2.0.3] - 2026-09-26
+
+### Changed
+- Filelist updated: 36,192 -> 36,695 hashes (91.58% -> 92.85% coverage).
+- Added 503 new hashes via StringPathHunter + TargetedSweep + MegaHunter.
+- methods.txt v2.0 with full dead-end documentation.
+- README updated to reflect new coverage numbers.
+
+### Notes
+- No toolkit code changes. Only data/filelist.txt + docs.
+- The toolkit reads the filelist from data/ at startup; drop-in replacement.
 
 ## [2.0.2] - 2026-09-26
 
