@@ -53,7 +53,61 @@ That is it.
 
 ---
 
-## What is new in v2.0.4
+## What is new in v2.0.5
+
+### Critical fix: DDSC textures crashed the game
+
+The bundled `ddscConvert.exe` (from Generation Zero upstream) spreads texture mipmaps across **three separate files**: `.atx1` + `.atx2` + `.ddsc`. RAGE 2 expects a **monolithic `.ddsc`** with the full mip chain inside. Installing any mod built from a `.ddsc`/`.avtx` texture caused the game to hang on save load.
+
+The toolkit now builds the AVTX file manually: **original header (128 bytes) + full mip payload from texconv**. Verified byte-identical size to the original.
+
+This applies to both texture families:
+
+| Original asset | How v2.0.5 writes it |
+|---|---|
+| `.atx1..9` | Raw BC1 mip 0, no header (matches original) |
+| `.ddsc` / `.avtx` | Monolithic AVTX with original DXGI format preserved |
+
+### Other fixes
+
+- **`ObjectDisposedException` in `.atx1` conversion.** 236/236 conversions were failing silently due to a `BinaryWriter` lifecycle bug. Fixed.
+- **`.atx1` -> DDS was returning PNG.** Hardcoded `-ft png`. Fixed.
+- **`_nrm` and `_mpm` textures came out granulated.** sRGB was being applied to linear data. Fixed with `IsColorSuffix()` heuristic.
+- **Cleanup deleted source files when conversion failed.** Silent data loss. Fixed with conditional cleanup.
+- **`mod.json` was case-sensitive.** Lowercase keys were ignored. Fixed.
+- **CLI parser off-by-one.** `--force` at the end of the argument list was never read. Fixed.
+- **Collapse by priority ignored the original asset format.** Now picks the winning file by original extension, not by hardcoded priority.
+- **`UninstallEngine` removed the mod from the registry before checking drift.** Left the registry inconsistent on abort. Fixed.
+
+### New
+
+- **Drift detection.** If an `.arc` is modified outside the ModManager, install/uninstall now refuses by default to avoid losing those changes. Use `--force` to override.
+- **Helpers**: `IsColorSuffix()`, `MapDxgiToTexconv()`, `TryReadAvtxHeader()`, `ArcLastWritten` registry.
+- **Docs**: `docs/ROLLBACK.md`, `docs/FALSE_POSITIVES.md`.
+- **Harness V4**: 19-phase automated test runner.
+
+### Changed
+
+- `TabFormat.cs` extracted from `Repack.cs` (was 835 lines mixed with legacy writer + old GUI).
+- `__converted__` staging moved from the source folder to `%TEMP%\RAGE2Toolkit_conv_<guid8>`.
+- `PendingStatus` enum replaces the `bool Ok` + `string Status` mix.
+- `type_map.json` and `type_map_v2.json` removed. Only `type_map_v3.json` ships.
+- Temporary `Diag.cs` debug logger removed.
+
+### Breaking
+
+- **New monolithic `.ddsc` layout.** Mods built with v2.0.4 or older that touch DDSC textures are incompatible and must be rebuilt with v2.0.5.
+- `mods.json` now has an `ArcLastWritten` field (backward compatible; missing field treated as no baseline).
+
+### Verified in-game
+
+- `.atx1` reskin (ark_assault dif) - visible in-game, no crash.
+- `.ddsc` reskin (ark_pistol dif) - visible in-game, no crash.
+- Baseline 46/46 intact after every test.
+
+---
+
+## v2.0.4 recap (2026-09-26)
 
 ### Semantic asset tree v3 - 12 categories, recursive schema
 

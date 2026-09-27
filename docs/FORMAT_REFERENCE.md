@@ -49,8 +49,7 @@ Run texconv -m 0 first if you upscaled.
 Files are identified by MurmurHash3 (x64, 128-bit) of their original path.
 The toolkit uses a community filelist to map hashes to names.
 
-- data/filelist.txt: 11,714 hash-to-name mappings (from DECA)
-- data/filelist_raw.txt: 358,057 raw paths (from DECA)
+- data/filelist.txt: 36,695 hash-to-name mappings (92.85% coverage, verified bit by bit)
 
 The filelist data comes from the DECA project. Their reverse engineering
 effort is the reason extracted files can be given readable names instead
