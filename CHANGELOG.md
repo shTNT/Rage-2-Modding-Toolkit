@@ -6,45 +6,74 @@ All notable changes to RAGE 2 Modding Toolkit.
 
 ## [2.0.5] - 2026-09-28
 
-### Added
+Full modding pipeline: Mod System backend + Mod Manager GUI + redesigned Repack wizard + critical DDSC fix.
 
-- Drift detection: `ArcLastWritten` dict in `mods.json` registers SHA256 after each write
-- `--force` on install and uninstall now respects drift warnings
-- AVTX manual build: preserves original header (128 bytes) + payload from texconv mip chain
+### Added - Mod System
+
+- `ModMetadata.cs`: `mod.json` schema 1 (name, version, author, description, license, dependencies, conflicts)
+- `ModsStore.cs`: portable registry at `mods/mods.json` + `mods/library/` (original zips) + `mods/backups/` (original `.arc` files)
+- `ModValidator.cs`: per-asset validation, hash grouping, native-over-convertible priority
+- `ModPackager.cs`: folder -> validated `.zip` with `mod.json` injected
+- `ModInstaller.cs`: 6-phase install (READ, DETECT, CONFLICT, PRE_INSTALL, BUILD_TMP, COMMIT, REGISTER). Rollback on any failure
+- `ConflictChecker.cs`: hash-level conflict detection against installed mods
+- `UninstallEngine.cs`: restore backups when no other mod touches the `.arc`; rebuild with remaining mods otherwise; cleanup orphan backups
+- `ModManagerForm.cs`: drag & drop `.zip`, list of installed mods, priority adjust, conflict panel, uninstall, `Restore All`
+
+### Added - Repack wizard redesign
+
+- 3-step wizard (was 5): Drop -> Scan -> Result
+- Produces distributable `.zip` mods (1-5 MB) instead of full `.arc` replacements
+- Asks for name + author via `ModMetaDialog` before packaging
+- Collapses duplicate hashes by priority (`ddsc` > `atx1` > `atx2` > `dds` > `png`)
+
+### Added - Drift detection
+
+- `ArcLastWritten` dict in `mods.json` registers SHA256 after each write
+- Install/uninstall refuses if the `.arc` was modified outside the ModManager
+- `--force` overrides (both CLI and in future GUI)
+- `UninstallEngine` pre-checks drift before `RemoveById` to keep the registry consistent
+
+### Added - Critical DDSC fix
+
+- AVTX manual build: preserves original header (128 bytes) + full mip payload from texconv
 - `IsColorSuffix()` helper for sRGB heuristic on conversion
 - `MapDxgiToTexconv()` to preserve original texture format (BC1/BC3/BC5/BC7)
 - `TryReadAvtxHeader()` parser for AVTX descriptors
-- Docs: `docs/ROLLBACK.md` and `docs/FALSE_POSITIVES.md`
+
+### Added - Other
+
+- Docs: `docs/ROLLBACK.md`, `docs/FALSE_POSITIVES.md`
 - Harness V4: `MASTER-TEST-RUNNER-V4.ps1` with 19 phases
 
-### Fixed (CRITICAL)
+### Fixed
 
-- **DDSC texture crash in-game**: `ddscConvert` (bundled, Generation Zero upstream) spreads mips across three files (`.atx1` + `.atx2` + `.ddsc`). RAGE 2 expects a monolithic `.ddsc` with the full mip chain inside. The toolkit now builds the AVTX file manually: original header + full mip payload from texconv. This was causing the game to hang on save load after installing any `.ddsc` texture mod.
-- `ObjectDisposedException` in `TryConvertAtx1ToEditable`: `BinaryWriter` was closing the underlying `FileStream` before `fs.Write()`. 236 of 236 `.atx1` conversions were failing silently before this fix.
-- `atx1 -> DDS` was returning PNG (hardcoded `-ft png`)
-- `_nrm` and `_mpm` textures were granulated (sRGB applied to linear data)
-- Cleanup deleted `.atxN` files even when conversion failed (silent data loss)
-- `mod.json` was case-sensitive; lowercase keys were ignored
-- CLI parser off-by-one: `--force` at end of args was never read
-- Collapse by priority didn't respect the original asset format
-- `ddscConvert` side files (`.atx1`, `.atx2`) polluted the converted dir
-- `UninstallEngine` did `RemoveById` before drift check, leaving the registry inconsistent
+- **DDSC texture crash in-game**: `ddscConvert` spreads mips across three files. Now builds monolithic AVTX by hand. This was causing the game to hang on save load after any `.ddsc`/`.avtx` mod install
+- **`ObjectDisposedException` in `TryConvertAtx1ToEditable`**: `BinaryWriter` was closing the underlying `FileStream` before `fs.Write`. 236/236 `.atx1` conversions were failing silently
+- **`atx1 -> DDS` returned PNG**: hardcoded `-ft png`
+- **`_nrm` and `_mpm` textures were granulated**: sRGB applied to linear data
+- **Cleanup deleted `.atxN` files when conversion failed**: silent data loss
+- **`mod.json` was case-sensitive**: lowercase keys ignored
+- **CLI parser off-by-one**: `--force` at the end of args was never read
+- **Collapse by priority ignored original format**: now uses `origExtByHash`
+- **`ddscConvert` side files** (`.atx1`, `.atx2`) polluted the converted dir
+- **`UninstallEngine` did `RemoveById` before drift check**: left the registry inconsistent
+- **`type_map.json` and `type_map_v2.json` shipped stale fallbacks**: removed
+- **`Diag.cs` temporary debug logger** wrote to a hardcoded dev path: removed
 
 ### Changed
 
 - `TabFormat.cs` extracted from `Repack.cs` (was 835 lines mixed with legacy writer + old GUI)
 - `__converted__` staging moved from source folder to `%TEMP%\RAGE2Toolkit_conv_<guid8>`
 - `PendingStatus` enum replaces `bool Ok` + `string Status` mix
-- `type_map.json` and `type_map_v2.json` removed. Only `type_map_v3.json` ships.
-- `Diag.cs` (temporary debug logger) removed
+- Legacy `Repack.cs` (`Repacker` + `RepackForm`) deprecated
 
 ### Breaking
 
-- New monolithic `.ddsc` layout. Mods built with v2.0.4 or older that touch DDSC textures are incompatible and must be repacked with v2.0.5.
-- `mods.json` now has an `ArcLastWritten` field (backward compatible; missing field treated as no baseline)
+- **New monolithic `.ddsc` layout.** Mods built with v2.0.4 or older that touch DDSC textures are incompatible and must be rebuilt with v2.0.5
+- `mods.json` now has an `ArcLastWritten` field (backward compatible)
+- Legacy `Repack.cs` is deprecated
 
 ---
-
 ## [2.0.4] - 2026-09-26
 
 ### Added

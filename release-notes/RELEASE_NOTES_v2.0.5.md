@@ -1,4 +1,4 @@
-# v2.0.5 - Critical DDSC fix + pipeline hardening
+# v2.0.5 - Full Mod System + critical DDSC fix
 
 **Release date:** 2026-09-28
 **7z:** `RAGE2TOOLKIT-v2.0.5.7z` (45.14 MB)
@@ -8,61 +8,113 @@
 
 ## TL;DR
 
-If you install mods that touch `.ddsc` or `.avtx` textures, **v2.0.4 crashed the game on save load**. v2.0.5 fixes it. Nothing else about the toolkit was broken, but this fix touches the whole texture pipeline and adds safety nets around it.
+RAGE 2 Modding Toolkit is no longer just an extractor + repacker. **v2.0.5 ships the full modding pipeline**:
+
+- **Mod System backend** - pack, install, uninstall, priority, conflict detection, backups, rollback.
+- **Mod Manager GUI** - drag & drop mods, see what is installed, manage conflicts, restore backups.
+- **Redesigned Repack wizard** - produces distributable `.zip` mods (1-5 MB) instead of 700 MB `.arc` files.
+
+Plus the critical DDSC crash fix, drift detection, and 12 other pipeline fixes.
 
 ---
 
-## The critical bug
+## The Mod System
 
-The bundled `ddscConvert.exe` (from Generation Zero upstream) spreads texture mipmaps across **three separate files**: `.atx1` + `.atx2` + `.ddsc`. RAGE 2 expects a **monolithic `.ddsc`** with the full mip chain inside.
+### Why it matters
 
-Result: any mod built from a `.ddsc`/`.avtx` texture was written into the `.arc` as a 22 KB fragment instead of a 1.4 MB monolithic file. The engine read the header (`mip_count=11`), tried to read 11 mip levels from a 1-mip payload, and hung on save load.
+Before: any mod was a 700 MB `.arc` full replacement. Not shareable, not scalable, not manageable.
 
-**Fix:** the toolkit now builds the AVTX file by hand:
+Now: a mod is a 1-5 MB `.zip`. Pack it, share it, install it, uninstall it. The toolkit handles backups, priority, conflict detection, and rollback automatically.
 
-1. `texconv -f <original DXGI> -m <original mip count>` produces a DDS with the full mip chain.
-2. The 128-byte header from the **original asset in the `.arc`** is preserved.
-3. Payload = `DDS[128:]` appended to the original header.
+### Backend components
 
-Verified: 1,398,240 bytes - byte-identical size to the original pistol texture.
+- **ModMetadata** - `mod.json` schema 1 (name, version, author, description, license, dependencies, conflicts).
+- **ModsStore** - portable registry at `mods/mods.json` + `mods/library/` (original zips) + `mods/backups/` (original `.arc` files). No `%APPDATA%`, no registry keys.
+- **ModValidator** - validates each asset, groups by hash, prioritizes native over convertible.
+- **ModPackager** - folder -> validated `.zip` with `mod.json` injected.
+- **ModInstaller** - 6-phase install: READ, DETECT (which `.arc` has the hash), CONFLICT, PRE_INSTALL, BUILD_TMP, COMMIT, REGISTER. Rollback on failure.
+- **ConflictChecker** - hash-level conflict detection against currently installed mods.
+- **UninstallEngine** - restores backups when no other mod touches the `.arc`, rebuilds with remaining mods otherwise. Cleanup of orphan backups.
+
+### Mod Manager GUI
+
+- Drag & drop `.zip` to install.
+- List of installed mods with ID, name, version, priority.
+- Priority adjust (higher wins on hash-level overlap).
+- Conflict panel showing shared hashes between mods.
+- Uninstall individual mods.
+- `Restore All` returns every `.arc` to the original state.
+- Backups stored per-universe (`initial_game8.arc.original` vs `supplemental_game8.arc.original`) to avoid collisions.
+
+### Redesigned Repack wizard
+
+3 steps (was 5):
+
+1. **Drop** - folder with edited assets, choose raw or convert.
+2. **Scan** - validates hashes, classifies each file, collapses duplicate hashes by priority.
+3. **Result** - asks for name + author, produces `.zip`, shows path.
+
+No more direct-to-game install. The wizard now produces distributable `.zip` files by design.
+
+### Drift detection
+
+If an `.arc` is modified outside the ModManager (external tool, old wizard, manual copy), the next install/uninstall refuses to proceed by default. This prevents silent overwrites of external changes. `--force` overrides. State is tracked per `.arc` via SHA256 in `mods.json` (`ArcLastWritten`).
 
 ---
 
-## What else changed
+## The critical DDSC fix
 
-### Fixes (all silent before)
+The bundled `ddscConvert.exe` (from Generation Zero upstream) spreads texture mipmaps across **three separate files**: `.atx1` + `.atx2` + `.ddsc`. RAGE 2 expects a **monolithic `.ddsc`** with the full mip chain inside. Installing any mod built from a `.ddsc`/`.avtx` texture caused the game to **hang on save load**.
 
-- **`ObjectDisposedException` in `.atx1` -> PNG.** 236/236 conversions were failing. Root cause: `BinaryWriter.Dispose()` was closing the underlying `FileStream` before the payload write.
+The toolkit now builds the AVTX file manually: **original header (128 bytes) + full mip payload from texconv**. Verified byte-identical size to the original.
+
+| Original asset | How v2.0.5 writes it |
+|---|---|
+| `.atx1..9` | Raw BC1 mip 0, no header (matches original) |
+| `.ddsc` / `.avtx` | Monolithic AVTX with original DXGI format preserved |
+
+---
+
+## Other fixes (12)
+
+- **`ObjectDisposedException` in `.atx1` conversion.** 236/236 conversions were failing silently. `BinaryWriter.Dispose()` was closing the underlying `FileStream` before the payload write.
 - **`.atx1` -> DDS returned PNG.** Hardcoded `-ft png`. Now respects the target format.
-- **`_nrm` and `_mpm` textures came out granulated.** sRGB was being applied to linear data. Now uses `IsColorSuffix()` to pick profile per PBR suffix.
+- **`_nrm` and `_mpm` textures came out granulated.** sRGB was being applied to linear data. Now uses `IsColorSuffix()` heuristic.
 - **Cleanup deleted source files when conversion failed.** Silent data loss. Now conditional.
-- **`mod.json` was case-sensitive.** Lowercase keys ignored. Now case-insensitive.
+- **`mod.json` was case-sensitive.** Lowercase keys were ignored. Now case-insensitive.
 - **CLI parser off-by-one.** `--force` at the end of args was never read.
 - **Collapse by priority ignored original format.** Now uses `origExtByHash` to pick the winning file.
 - **`UninstallEngine` did `RemoveById` before checking drift.** Left the registry inconsistent on abort.
-
-### New
-
-- **Drift detection.** SHA256 per `.arc` stored in `mods.json` (`ArcLastWritten`). Install/uninstall refuses if the `.arc` was modified outside the ModManager. `--force` overrides.
-- **Helpers**: `IsColorSuffix()`, `MapDxgiToTexconv()`, `TryReadAvtxHeader()`.
-- **Docs**: `docs/ROLLBACK.md`, `docs/FALSE_POSITIVES.md`.
-- **Harness V4**: 19-phase test runner (`MASTER-TEST-RUNNER-V4.ps1`). 19/19 PASS.
-
-### Changed
-
-- `TabFormat.cs` extracted from `Repack.cs`.
-- `__converted__` staging moved to `%TEMP%\RAGE2Toolkit_conv_<guid8>`.
-- `PendingStatus` enum replaces `bool Ok` + `string Status`.
-- `type_map.json` and `type_map_v2.json` removed. Only `type_map_v3.json` ships.
-- Temporary `Diag.cs` debug logger removed.
+- **`ddscConvert` side files polluted the converted dir.** Cleaned up.
+- **`type_map.json` and `type_map_v2.json` shipped stale fallbacks.** Removed; only `type_map_v3.json` is authoritative now.
+- **`Diag.cs` temporary debug logger was writing to a hardcoded dev path.** Removed.
+- **CLI `--uninstall` did not accept `--force`.** Fixed.
 
 ---
 
-## Breaking
+## Changed
 
-**New monolithic `.ddsc` layout.** Mods built with v2.0.4 or older that touch DDSC textures are incompatible and must be rebuilt with v2.0.5.
+- `TabFormat.cs` extracted from `Repack.cs` (was 835 lines mixed with legacy writer + old GUI).
+- `__converted__` staging moved from source folder to `%TEMP%\RAGE2Toolkit_conv_<guid8>`.
+- `PendingStatus` enum replaces `bool Ok` + `string Status` mix.
+- Legacy `Repack.cs` (`Repacker` + `RepackForm`) deprecated. The old direct-install path is no longer the recommended workflow.
 
-`mods.json` now has an `ArcLastWritten` field (backward compatible; missing field is treated as no baseline).
+---
+
+## New docs
+
+- `docs/ROLLBACK.md` - manual restore instructions if `Restore All` fails.
+- `docs/FALSE_POSITIVES.md` - how to verify SHA256 and report false positives to antivirus vendors.
+- `docs/HOW_TO_USE.md` - rewritten around the Repack + ModManager workflow.
+- `docs/TROUBLESHOOTING.md` - drift, monolithic DDSC, false positives, rollback.
+
+---
+
+## Breaking changes
+
+- **New monolithic `.ddsc` layout.** Mods built with v2.0.4 or older that touch DDSC textures are incompatible and must be rebuilt with v2.0.5.
+- `mods.json` now has an `ArcLastWritten` field (backward compatible; missing field is treated as no baseline).
+- Legacy `Repack.cs` is deprecated.
 
 ---
 
@@ -71,6 +123,7 @@ Verified: 1,398,240 bytes - byte-identical size to the original pistol texture.
 - `.atx1` reskin (ark_assault dif) - visible in-game, no crash.
 - `.ddsc` reskin (ark_pistol dif) - visible in-game, no crash.
 - Baseline 46/46 intact after every test.
+- Harness V4: 19/19 PASS.
 
 ---
 
