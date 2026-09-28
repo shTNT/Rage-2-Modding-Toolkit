@@ -107,7 +107,11 @@ This applies to both texture families:
 
 ---
 
-## v2.0.4 recap (2026-09-26)
+## Release history
+
+<details>
+<summary><b>v2.0.4</b> (2026-09-26) - Semantic tree v3, race condition fixes, batch extraction</summary>
+
 
 ### Semantic asset tree v3 - 12 categories, recursive schema
 
@@ -176,9 +180,8 @@ Extracted assets are organized into folders by entity name (`ark_assault/`, `goo
 
 Tested on 6 different archives (`game0`, `game3`, `game8`, `game10`, `game11`, `game12`) — **10,488 files, 0 failures.** Round-trip byte-identical, replace byte-perfect, multi-pass x5 deterministic, baseline 46/46 intact.
 
----
+</details>
 
-## Release history
 
 <details>
 <summary><b>v2.0.3</b> (2026-09-26) - Asset browser tree v2, descriptive filenames, sRGB</summary>
