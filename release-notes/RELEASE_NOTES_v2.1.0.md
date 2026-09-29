@@ -99,11 +99,21 @@ Editor coverage is **445 / 989 = 45%**. The remaining 544 are engine-internal ha
 
 ## Credits
 
-- **REDxEYE** (ApexPredator, Generation Zero) for the `.atxN` mipmap confirmation and RED_EYE DB
-- **DECA** (kk49) for the initial path database
-- **PredatorCZ** (ApexToolset) for `ddscConvert` and `R2SmallArchive`
-- **Microsoft DirectXTex** for `texconv`
-- The RAGE 2 modding community
+**The toolkit itself is built from scratch.** Every parser, writer, GUI and installer in this release is original work.
+
+Special thanks to **REDxEYE** ([ApexPredator](https://github.com/REDxEYE/APEX-PREDATOR)):
+
+- His **hash extractor** produced the 103,428-path database that ships with this toolkit. It directly enabled the filelist expansion and the 444-name `settings_editor_names.json`.
+- His **file format research** on the Avalanche Apex engine clarified several structures (`.atxN` mipmap family, `modelc = adf`, `sarc.gtoc`) used as reference.
+- His **patience** on the DECA Discord.
+
+Bundled third-party tools:
+
+- **DECA** (kk49) - initial path database
+- **PredatorCZ** (ApexToolset) - `ddscConvert`, `R2SmallArchive`
+- **Microsoft DirectXTex** - `texconv`
+
+And the RAGE 2 modding community.
 
 ---
 
