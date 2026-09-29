@@ -16,6 +16,7 @@ namespace Rage2Toolkit
             Color C_HEAD  = Color.FromArgb(15, 15, 20);
             Color C_INFO  = Color.FromArgb(0, 200, 200);
             Color C_PANEL = Color.FromArgb(30, 30, 38);
+            Color C_MAGENTA = Color.FromArgb(220, 80, 220);
 
             this.Text = "Format & Files Guidelines";
             this.BackColor = C_BG;
@@ -23,19 +24,27 @@ namespace Rage2Toolkit
             this.Size = new Size(920, 720);
             this.StartPosition = FormStartPosition.CenterParent;
             this.MinimumSize = new Size(720, 520);
+
+            var headerBar = new AccentBar();
+            headerBar.BackColor = C_MAGENTA;
+            headerBar.Location = new Point(0, 0);
+            headerBar.Size = new Size(this.ClientSize.Width, 6);
+            headerBar.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            this.Controls.Add(headerBar);
+            headerBar.BringToFront();
             this.Font = new Font("Segoe UI", 9F);
 
             var title = new Label {
                 Text = "Format && Files Guidelines",
                 Font = new Font("Segoe UI", 16F, FontStyle.Bold),
-                ForeColor = C_INFO,
+                ForeColor = C_MAGENTA,
                 Location = new Point(20, 15),
                 AutoSize = true
             };
             this.Controls.Add(title);
 
             var sub = new Label {
-                Text = "Requirements for files before repacking. If a format is not marked as 'native', convert it first with the toolkit.",
+                Text = "Requirements for files before repacking. NOTE: the Repack wizard already validates every file you drop. If a format is not marked as 'native', convert it first with the toolkit.",
                 ForeColor = Color.FromArgb(200, 200, 200),
                 Location = new Point(20, 55),
                 Size = new Size(880, 40)
@@ -59,23 +68,47 @@ namespace Rage2Toolkit
 
             var btnClose = new Button {
                 Text = "Close",
-                Location = new Point(800, 665),
+                Location = new Point(784, 630),
                 Size = new Size(100, 32),
                 Anchor = AnchorStyles.Bottom | AnchorStyles.Right,
                 BackColor = C_PANEL,
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat
             };
-            btnClose.FlatAppearance.BorderColor = C_INFO;
+            btnClose.FlatAppearance.BorderColor = C_MAGENTA;
             btnClose.Click += (s, e) => this.Close();
             this.Controls.Add(btnClose);
+
+            var btnHelp = new Button {
+                Text = "How this works",
+                Location = new Point(650, 630),
+                Size = new Size(124, 32),
+                Anchor = AnchorStyles.Bottom | AnchorStyles.Right,
+                BackColor = C_PANEL,
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat
+            };
+            btnHelp.FlatAppearance.BorderColor = C_MAGENTA;
+            btnHelp.Click += (s, e) => { new GuidelinesHelpForm().ShowDialog(this); };
+            this.Controls.Add(btnHelp);
         }
 
-        static string BuildGuidelines()
+                static string BuildGuidelines()
         {
             var sb = new System.Text.StringBuilder();
             sb.AppendLine("RAGE 2 Modding Toolkit - Format & Files Guidelines");
             sb.AppendLine("====================================================");
+            sb.AppendLine();
+            sb.AppendLine("  STATUS LEGEND");
+            sb.AppendLine("  -------------");
+            sb.AppendLine("    [NATIVE]   Already game-ready. Drop it as-is, toolkit repacks.");
+            sb.AppendLine("    [CONVERT]  Toolkit converts it on rebuild (bundled tools).");
+            sb.AppendLine("    [MANUAL]   Requires an external tool (not redistributed).");
+            sb.AppendLine("    [SKIP]     Toolkit ignores the file silently.");
+            sb.AppendLine();
+            sb.AppendLine("  The Repack wizard ALWAYS validates every file you drop, using");
+            sb.AppendLine("  this same classification. If a format is [CONVERT] the toolkit");
+            sb.AppendLine("  will convert it. If [MANUAL] or [SKIP], it will not.");
             sb.AppendLine();
             sb.AppendLine("  ##########################################################");
             sb.AppendLine("  #                                                        #");
@@ -83,111 +116,101 @@ namespace Rage2Toolkit
             sb.AppendLine("  #                                                        #");
             sb.AppendLine("  ##########################################################");
             sb.AppendLine();
-            sb.AppendLine("RAGE 2 has NO NAMES inside its archives. Every asset is");
-            sb.AppendLine("identified by a 64-bit hash derived from its original path.");
-            sb.AppendLine("The toolkit uses the FILENAME (without extension) as that");
-            sb.AppendLine("hash. That is the ONLY way it knows WHICH asset you are");
-            sb.AppendLine("trying to replace.");
+            sb.AppendLine("  RAGE 2 has NO NAMES inside its archives. Every asset is");
+            sb.AppendLine("  identified by a 64-bit hash derived from its original path.");
+            sb.AppendLine("  The toolkit uses the FILENAME (without extension) as that");
+            sb.AppendLine("  hash. That is the ONLY way it knows WHICH asset you are");
+            sb.AppendLine("  trying to replace.");
             sb.AppendLine();
-            sb.AppendLine("  VALID:    4E37BD8EAD14BEA2.dds   (16 hex chars)");
-            sb.AppendLine("  VALID:    4E37BD8EAD14BEA2.png");
-            sb.AppendLine("  INVALID:  wallpaper.png           (not a hash)");
-            sb.AppendLine("  INVALID:  my_texture.ddsc         (not a hash)");
-            sb.AppendLine("  INVALID:  4E37BD8E.dds            (too short)");
+            sb.AppendLine("    VALID:    4E37BD8EAD14BEA2.dds   (16 hex chars)");
+            sb.AppendLine("    VALID:    4E37BD8EAD14BEA2.png");
+            sb.AppendLine("    INVALID:  wallpaper.png           (not a hash)");
+            sb.AppendLine("    INVALID:  my_texture.ddsc         (not a hash)");
+            sb.AppendLine("    INVALID:  4E37BD8E.dds            (too short)");
             sb.AppendLine();
-            sb.AppendLine("If the filename is not a valid 16-hex hash, the toolkit WILL");
-            sb.AppendLine("IGNORE the file. It will NOT guess. It cannot.");
+            sb.AppendLine("  If the filename is not a valid 16-hex hash, the toolkit WILL");
+            sb.AppendLine("  IGNORE the file. It will NOT guess. It cannot.");
             sb.AppendLine();
-            sb.AppendLine("WORKFLOW TO REPLACE A TEXTURE (or any asset):");
+            sb.AppendLine("  WORKFLOW TO REPLACE A TEXTURE (or any asset):");
             sb.AppendLine();
-            sb.AppendLine("  1. EXTRACT the game, or use the 'Browse & pick manually'");
-            sb.AppendLine("     option in the Extract wizard to grab a single asset.");
-            sb.AppendLine("  2. Locate what you want: e.g. 4E37BD8EAD14BEA2.dds");
-            sb.AppendLine("  3. If you need to edit it, convert it to PNG:");
-            sb.AppendLine("       4E37BD8EAD14BEA2.dds  ->  4E37BD8EAD14BEA2.png");
-            sb.AppendLine("  4. Edit the PNG in Photoshop / GIMP / Paint.NET.");
-            sb.AppendLine("  5. KEEP THE SAME FILENAME. Only the extension can change.");
-            sb.AppendLine("     The hash MUST be preserved character for character.");
-            sb.AppendLine("  6. Drop the folder in the wizard, choose 'Convert with toolkit'.");
-            sb.AppendLine("  7. Toolkit converts PNG -> DDSC and repacks it into the");
-            sb.AppendLine("     correct .arc entry automatically. Game sees new texture.");
+            sb.AppendLine("    1. EXTRACT the game, or use the 'Browse & pick manually'");
+            sb.AppendLine("       option in the Extract wizard to grab a single asset.");
+            sb.AppendLine("    2. Locate what you want: e.g. 4E37BD8EAD14BEA2.dds");
+            sb.AppendLine("    3. If you need to edit it, convert it to PNG:");
+            sb.AppendLine("         4E37BD8EAD14BEA2.dds  ->  4E37BD8EAD14BEA2.png");
+            sb.AppendLine("    4. Edit the PNG in Photoshop / GIMP / Paint.NET.");
+            sb.AppendLine("    5. KEEP THE SAME FILENAME. Only the extension can change.");
+            sb.AppendLine("       The hash MUST be preserved character for character.");
+            sb.AppendLine("    6. Drop the folder in the wizard, choose 'Convert with toolkit'.");
+            sb.AppendLine("    7. Toolkit converts PNG -> DDSC and repacks it into the");
+            sb.AppendLine("       correct .arc entry automatically. Game sees new texture.");
             sb.AppendLine();
-            sb.AppendLine("Common mistakes:");
-            sb.AppendLine("  - Renaming the file to 'rifle.png'              -> ignored");
-            sb.AppendLine("  - Saving as '4E37BD8EAD14BEA2 (copy).png'       -> ignored");
-            sb.AppendLine("  - Converting extension to uppercase .DDS vs .dds -> OK, both work");
-            sb.AppendLine("  - Editing size (256x256 -> 512x512)             -> often breaks game");
+            sb.AppendLine("  Common mistakes:");
+            sb.AppendLine("    - Renaming the file to 'rifle.png'              -> ignored");
+            sb.AppendLine("    - Saving as '4E37BD8EAD14BEA2 (copy).png'       -> ignored");
+            sb.AppendLine("    - Converting extension to uppercase .DDS vs .dds -> OK, both work");
+            sb.AppendLine("    - Editing size (256x256 -> 512x512)             -> often breaks game");
             sb.AppendLine();
             sb.AppendLine("  ========================================================");
-            sb.AppendLine("  FORMAT REFERENCE (for each extension)");
+            sb.AppendLine("  FORMAT REFERENCE (extension -> status -> notes)");
             sb.AppendLine("  ========================================================");
             sb.AppendLine();
             sb.AppendLine("--------------------------------------------------------");
             sb.AppendLine("TEXTURES");
             sb.AppendLine("--------------------------------------------------------");
-            sb.AppendLine("  .ddsc   native    Already game-ready.");
-            sb.AppendLine("  .avtx   native    AVTX container (magic 'AVTX' @ 0).");
-            sb.AppendLine("  .atx1   native    Climate zone texture.");
-            sb.AppendLine("  .dds    convert   Auto-converted to .ddsc by toolkit on rebuild.");
-            sb.AppendLine("  .png    convert   NOT accepted by the game. Requires conversion:");
-            sb.AppendLine("                    dimensions multiple of 4, full mipmap chain,");
-            sb.AppendLine("                    format BC1/BC3/BC5/BC6H/BC7.");
-            sb.AppendLine("  .jpg    convert   Same requirements as PNG.");
-            sb.AppendLine("  .tga    convert   Same requirements as PNG.");
-            sb.AppendLine("  .bmp    convert   Same requirements as PNG.");
+            sb.AppendLine("  .ddsc            [NATIVE]   DDSC container. Editable via ddscConvert.");
+            sb.AppendLine("  .avtx            [NATIVE]   AVTX container. Same family as DDSC.");
+            sb.AppendLine("  .atx1            [NATIVE]   BC1/BC3 mip0 blob. Convert via toolkit.");
+            sb.AppendLine("  .atx2 .. .atx9   [NATIVE]   Higher mips of an ATX chain. Ignore.");
+            sb.AppendLine("  .dds             [CONVERT]  Toolkit converts to DDSC (ddscConvert).");
+            sb.AppendLine("  .png .jpg .tga   [CONVERT]  Toolkit converts to DDSC (texconv+ddscConvert).");
+            sb.AppendLine("  .bmp             [CONVERT]  Same as PNG.");
             sb.AppendLine();
             sb.AppendLine("--------------------------------------------------------");
             sb.AppendLine("AUDIO");
             sb.AppendLine("--------------------------------------------------------");
-            sb.AppendLine("  .ogg    native    OGG Vorbis. Editable with Audacity.");
-            sb.AppendLine("  .riff   native    RIFF container.");
-            sb.AppendLine("  .wav    convert   WAV not accepted. Convert to OGG (ffmpeg).");
-            sb.AppendLine("  .mp3    convert   MP3 not accepted. Convert to OGG (ffmpeg).");
-            sb.AppendLine("  .flac   convert   Same as MP3.");
+            sb.AppendLine("  .ogg             [NATIVE]   OGG Vorbis. Editable with Audacity.");
+            sb.AppendLine("  .vocalsc         [NATIVE]   Vocal track container.");
+            sb.AppendLine("  .fl .riff        [NATIVE]   Audio containers.");
+            sb.AppendLine("  .wav .mp3 .flac  [CONVERT]  Toolkit converts to OGG (ffmpeg on-demand).");
             sb.AppendLine();
             sb.AppendLine("--------------------------------------------------------");
             sb.AppendLine("VIDEO");
             sb.AppendLine("--------------------------------------------------------");
-            sb.AppendLine("  .bk2    native    Bink v2 video.");
-            sb.AppendLine("  .bik    native    Bink v1 video (legacy).");
-            sb.AppendLine("  .bikc   native    Bink video in .arc container.");
-            sb.AppendLine("  .mp4    manual    NOT accepted. Requires RAD Video Tools.");
-            sb.AppendLine("  .avi    manual    Same as MP4.");
-            sb.AppendLine("  .mov    manual    Same as MP4.");
+            sb.AppendLine("  .bikc .bk2 .bik  [NATIVE]   Bink video. Edit with RAD Video Tools.");
+            sb.AppendLine("  .mp4 .avi .mov   [MANUAL]   Re-encode to BIK with RAD Video Tools.");
             sb.AppendLine();
             sb.AppendLine("--------------------------------------------------------");
             sb.AppendLine("UI (Scaleform GFx)");
             sb.AppendLine("--------------------------------------------------------");
-            sb.AppendLine("  .gfx    native    Compiled Scaleform movie.");
-            sb.AppendLine("  .cfx    native    Scaleform with CFX 1F magic + zlib.");
-            sb.AppendLine("  .swf    manual    Compile to CFX with JPEXS Decompiler.");
+            sb.AppendLine("  .gfx .cfx        [NATIVE]   Compiled Scaleform movie.");
+            sb.AppendLine("  .swf             [MANUAL]   Compile to CFX with JPEXS Decompiler.");
             sb.AppendLine();
             sb.AppendLine("--------------------------------------------------------");
             sb.AppendLine("SCRIPTS / DATA / CONFIG");
             sb.AppendLine("--------------------------------------------------------");
-            sb.AppendLine("  .adf    native    ADF script container.");
-            sb.AppendLine("  .ee     native    Encounter editor data.");
-            sb.AppendLine("  .nl     native    Location data.");
-            sb.AppendLine("  .bl     native    Blend layer data.");
-            sb.AppendLine("  .json   native    JSON. Any text editor.");
-            sb.AppendLine("  .bin    native    Binary config.");
-            sb.AppendLine("  .tag    native    Tag data.");
+            sb.AppendLine("  .adf .ee .nl .bl [NATIVE]   Script / data containers.");
+            sb.AppendLine("  .bin .json       [NATIVE]   Config. JSON edits with a text editor.");
+            sb.AppendLine("  .stringlookup    [NATIVE]   Localization lookup table.");
+            sb.AppendLine("  .environc .asb   [NATIVE]   Environment / audio definitions.");
+            sb.AppendLine("  .graphc          [NATIVE]   Graph definition.");
+            sb.AppendLine("  .physc .inputc   [NATIVE]   Physics / input config.");
+            sb.AppendLine("  .ttfc etc.       [NATIVE]   Font and misc engine config.");
             sb.AppendLine();
             sb.AppendLine("--------------------------------------------------------");
             sb.AppendLine("MESH / ANIMATION (no editor available - native only)");
             sb.AppendLine("--------------------------------------------------------");
-            sb.AppendLine("  .meshc     native   Static mesh.");
-            sb.AppendLine("  .hrmeshc   native   Hierarchical mesh.");
-            sb.AppendLine("  .navmeshc  native   Navigation mesh.");
-            sb.AppendLine("  .graphc    native   Graph definition.");
-            sb.AppendLine("  .ban       native   Animation.");
-            sb.AppendLine("  .hikcc     native   Havok animation container.");
+            sb.AppendLine("  .meshc .hrmeshc  [NATIVE]   Static / hierarchical mesh.");
+            sb.AppendLine("  .navmeshc        [NATIVE]   Navigation mesh.");
+            sb.AppendLine("  .ban .hikcc      [NATIVE]   Animations.");
+            sb.AppendLine("  .meproc          [NATIVE]   Procedural mesh.");
             sb.AppendLine();
             sb.AppendLine("--------------------------------------------------------");
-            sb.AppendLine("PROCEDURAL (not editable usefully)");
+            sb.AppendLine("PROCEDURAL / ENGINE-ONLY (not editable usefully)");
             sb.AppendLine("--------------------------------------------------------");
-            sb.AppendLine("  .streampatch   native   Terrain patch (generated by engine).");
-            sb.AppendLine("  .rawc          native   Raw data.");
+            sb.AppendLine("  .streampatch     [NATIVE]   Terrain patch (engine-generated).");
+            sb.AppendLine("  .rawc .roadgraphc[NATIVE]   Raw / road graph data.");
+            sb.AppendLine("  .world .worldlocationsc etc.[NATIVE]   World/region data.");
             sb.AppendLine();
             sb.AppendLine("--------------------------------------------------------");
             sb.AppendLine("CONVERTERS AVAILABLE IN THE TOOLKIT");

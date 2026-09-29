@@ -1,4 +1,4 @@
-﻿THIRD-PARTY SOFTWARE NOTICES
+THIRD-PARTY SOFTWARE NOTICES
 ============================
 
 This toolkit includes, references or derives from the following third-party
@@ -10,8 +10,6 @@ software and data. Each component is subject to its own license terms.
 
    a) resources/deca/rg2/filelist.txt (358,057 entries)
       Raw path database used to reverse MurmurHash3 hashes back to real names.
-      Without this data, all extracted files would be hash-named. It is the
-      sole reason the toolkit can give readable names to 81% of extracted files.
 
    b) python/deca/deca/ff_arc_tab.py
       Reference TAB v3.1 parser. Documented the multi-block compression layout
@@ -19,44 +17,54 @@ software and data. Each component is subject to its own license terms.
       extractor is a direct port of the logic found here.
 
    The DECA project's reverse engineering work is foundational to this toolkit.
-   Archive-format questions should be directed to DECA first.
 
-2. PredatorCZ (Lukas Cone) — ApexToolset
+2. REDxEYE - ApexPredator
+   ---------------------------------------------------------------------------
+   Author: REDxEYE
+   Source: https://github.com/REDxEYE/APEX-PREDATOR
+
+   a) Hash extractor output (103,428 hash-to-path entries)
+      The full filelist shipped with the toolkit (data/filelist.txt) is built
+      from REDxEYE's hash extractor. It covers 36,695 of the 39,519 gameplay
+      hashes in the 46 .arc archives the toolkit extracts (92.85%), plus
+      ~66,733 additional paths from DLCs, other locales, and engine-referenced
+      assets not shipped as standalone files in every install.
+
+   b) File format research
+      Reference work on the Avalanche Apex engine formats: .atxN mipmap family,
+      modelc = adf, sarc.gtoc path handling. Used as cross-reference.
+
+   The toolkit itself is entirely our own work. REDxEYE's extractor gave us
+   reach; the parser, writer, GUI and installer are ours.
+
+3. PredatorCZ (Lukas Cone) - ApexToolset
    ---------------------------------------------------------------------------
    Copyright (c) 2014-2020 Lukas Cone (PredatorCZ)
    Licensed under GNU GPL v3.0
    Source: https://github.com/PredatorCZ/ApexToolset
-   Full license: https://www.gnu.org/licenses/gpl-3.0.txt
 
-   - ddscConvert.exe — AVTX <-> DDS texture converter
-   - R2SmallArchive.exe — mini-archive extractor
+   - ddscConvert.exe - AVTX <-> DDS texture converter
+   - R2SmallArchive.exe - mini-archive extractor
 
-   These binaries are distributed as part of an aggregate work. The full
-   corresponding source code is available at the link above.
-
-3. texconv.exe (Microsoft DirectXTex)
+4. texconv.exe (Microsoft DirectXTex)
    ---------------------------------------------------------------------------
    Copyright (c) Microsoft Corporation
    Licensed under the MIT License
-   Source: https://github.com/microsoft/DirectXTex
 
-4. Oodle runtime (oo2core_7_win64.dll)
+5. Oodle runtime (oo2core_7_win64.dll)
    ---------------------------------------------------------------------------
    Copyright (c) RAD Game Tools / Epic Games
    PROPRIETARY - NOT REDISTRIBUTABLE
 
-   This DLL is NOT included with this toolkit. It is automatically copied
-   from the user's own RAGE 2 installation on first run. The toolkit does
-   not redistribute the runtime.
+   Not included. Auto-copied from the user's own RAGE 2 installation.
 
-5. RAGE2Toolkit.exe (original work by Kry0genik)
+6. RAGE2Toolkit.exe (original work by Kry0genik)
    ---------------------------------------------------------------------------
    Licensed under the MIT License (see LICENSE file).
 
 DISCLAIMER
 ----------
 This toolkit is not affiliated with, endorsed by, or supported by
-Avalanche Studios, Bethesda Softworks, the DECA project, PredatorCZ,
+Avalanche Studios, Bethesda Softworks, the DECA project, REDxEYE, PredatorCZ,
 Microsoft, RAD Game Tools, Epic Games, or any of their subsidiaries.
-All trademarks and intellectual property belong to their respective owners.
 Users must own a legitimate copy of RAGE 2 to use this tool.

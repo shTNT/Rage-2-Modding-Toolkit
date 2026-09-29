@@ -11,6 +11,7 @@
 // El engine detecta el tipo por magic interno ("AVTX"), no por extension.
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using System.Diagnostics;
 using System.IO;
 
@@ -166,15 +167,22 @@ namespace Rage2Toolkit
                 using (var p = Process.Start(psi))
                 {
                     try { p.StandardInput.Close(); } catch { }
-                    if (!p.WaitForExit(30000))
+
+                    // Leer stdout/stderr en PARALELO mientras el proceso corre.
+                    // Si no, un output > buffer (~4KB, tipico en texconv 2048x2048)
+                    // llena el pipe y el hijo se bloquea esperando que leamos.
+                    var soTask = Task.Run(() => { try { return p.StandardOutput.ReadToEnd(); } catch { return ""; } });
+                    var seTask = Task.Run(() => { try { return p.StandardError.ReadToEnd(); } catch { return ""; } });
+
+                    if (!p.WaitForExit(15000))
                     {
                         try { p.Kill(); } catch { }
                         r.Status = "FAIL";
-                        r.Errors.Add(label + " timeout 30s");
+                        r.Errors.Add(label + " timeout 15s");
                         return r;
                     }
-                    string so = p.StandardOutput.ReadToEnd();
-                    string se = p.StandardError.ReadToEnd();
+                    string so = soTask.Result;
+                    string se = seTask.Result;
                     if (p.ExitCode != 0)
                     {
                         r.Status = "FAIL";
@@ -192,6 +200,36 @@ namespace Rage2Toolkit
             return r;
         }
 
+        public struct AvtxMeta { public int Dxgi; public int Width; public int Height; public int Mips; public bool Srgb; public bool Valid; }
+        public static bool TryReadAvtxHeader(byte[] data, out AvtxMeta meta)
+        {
+            meta = new AvtxMeta();
+            if (data == null || data.Length < 128) return false;
+            if (data[0] != 0x41 || data[1] != 0x56 || data[2] != 0x54 || data[3] != 0x58) return false;
+            meta.Dxgi = BitConverter.ToInt32(data, 0x08);
+            meta.Width = BitConverter.ToUInt16(data, 0x0C);
+            meta.Height = BitConverter.ToUInt16(data, 0x0E);
+            ushort flags = BitConverter.ToUInt16(data, 0x12);
+            meta.Srgb = (flags & 0x8) != 0;
+            meta.Mips = data[0x14];
+            meta.Valid = (meta.Dxgi > 0 && meta.Width > 0 && meta.Height > 0);
+            return meta.Valid;
+        }
+        public static string MapDxgiToTexconv(int dxgi)
+        {
+            switch (dxgi)
+            {
+                case 71: return "BC1_UNORM";
+                case 72: return "BC1_UNORM_SRGB";
+                case 77: return "BC3_UNORM";
+                case 78: return "BC3_UNORM_SRGB";
+                case 80: return "BC4_UNORM";
+                case 83: return "BC5_UNORM";
+                case 98: return "BC7_UNORM";
+                case 99: return "BC7_UNORM_SRGB";
+                default: return "BC7_UNORM";
+            }
+        }
         public static string PickFormatForPath(string inputPath)
         {
             try {
@@ -207,7 +245,9 @@ namespace Rage2Toolkit
         }
 
         public static ConvertResult Convert(string inputPath, string outputDir, string toolkitReleaseDir,
-                                             string targetType = "auto", Action<string> log = null)
+                                             string targetType = "auto", Action<string> log = null,
+                                             int origDxgi = 0, int origWidth = 0, int origHeight = 0, bool origSrgb = false,
+                                             byte[] origAvtxHeader = null)
         {
             Action<string> L = log ?? (_ => { });
             var r = new ConvertResult { InputPath = inputPath };
@@ -215,6 +255,31 @@ namespace Rage2Toolkit
             Directory.CreateDirectory(outputDir);
 
             string ext = Path.GetExtension(inputPath).ToLowerInvariant();
+
+            // ATX1..9 -> BC1 raw mip 0 (sin header) - preserva formato original
+            if (targetType == "atx1" && (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp" || ext == ".tga"))
+            {
+                string _texconv = FindTexconv(toolkitReleaseDir);
+                if (_texconv == null) { r.Status = "FAIL"; r.Errors.Add("texconv no encontrado"); return r; }
+                string _ddsPath = Path.Combine(outputDir, Path.GetFileNameWithoutExtension(inputPath) + ".dds");
+                try { if (File.Exists(_ddsPath)) File.Delete(_ddsPath); } catch { }
+                string _texArgs = "-f BC1_UNORM -m 1 -y -o \"" + outputDir + "\" \"" + inputPath + "\"";
+                r = RunTool(_texconv, _texArgs, outputDir, "texconv (PNG->DDS BC1 mip0)", r, L);
+                if (r.Status == "FAIL") return r;
+                if (!File.Exists(_ddsPath)) { r.Status = "FAIL"; r.Errors.Add("texconv no produjo " + _ddsPath); return r; }
+                byte[] _ddsBytes = File.ReadAllBytes(_ddsPath);
+                if (_ddsBytes.Length < 128) { r.Status = "FAIL"; r.Errors.Add("DDS < 128 bytes"); return r; }
+                int _payloadLen = _ddsBytes.Length - 128;
+                byte[] _payload = new byte[_payloadLen];
+                Array.Copy(_ddsBytes, 128, _payload, 0, _payloadLen);
+                string _atx1Path = Path.Combine(outputDir, Path.GetFileNameWithoutExtension(inputPath) + ".atx1");
+                File.WriteAllBytes(_atx1Path, _payload);
+                try { File.Delete(_ddsPath); } catch { }
+                r.OutputPath = _atx1Path;
+                r.Status = "OK";
+                r.Steps.Add("PNG -> DDS BC1 mip0 -> ATX1 raw payload");
+                return r;
+            }
 
             // DDSC -> DDS -> editable (PNG/DDS) - TECH-15 reverse
             if ((ext == ".ddsc" || ext == ".avtx") &&
@@ -224,7 +289,7 @@ namespace Rage2Toolkit
                 if (ddsc == null) { r.Status = "FAIL"; r.Errors.Add("ddscConvert no encontrado"); return r; }
                 string work = Path.Combine(outputDir, Path.GetFileNameWithoutExtension(inputPath) + ".dds");
                 File.Copy(inputPath, work, true);
-                string tmpDir = Path.Combine(outputDir, "__tmp_rev");
+                string tmpDir = Path.Combine(outputDir, "__tmp_rev_" + Guid.NewGuid().ToString("N").Substring(0, 8));
                 Directory.CreateDirectory(tmpDir);
                 string tmpDdsc = Path.Combine(tmpDir, Path.GetFileNameWithoutExtension(inputPath) + ".ddsc");
                 File.Move(work, tmpDdsc);
@@ -236,7 +301,7 @@ namespace Rage2Toolkit
                     File.Copy(outDds, Path.Combine(outputDir, Path.GetFileName(outDds)), true);
                     r.OutputPath = Path.Combine(outputDir, Path.GetFileName(outDds));
                     r.Steps.Add("DDSC -> DDS");
-                    try { if (File.Exists(inputPath)) File.Delete(inputPath); } catch { }
+                    // El cleanup central del toolkit borra el .ddsc/.avtx original si existe .dds hermano.
                 } else {
                     string texconv = FindTexconv(toolkitReleaseDir);
                     if (texconv == null) { r.Status = "FAIL"; r.Errors.Add("texconv no encontrado"); return r; }
@@ -256,8 +321,7 @@ namespace Rage2Toolkit
                     if (!File.Exists(outPng)) { r.Status = "FAIL"; r.Errors.Add("texconv no produjo PNG"); return r; }
                     File.Copy(outPng, Path.Combine(outputDir, Path.GetFileName(outPng)), true);
                     r.OutputPath = Path.Combine(outputDir, Path.GetFileName(outPng));
-                    // cleanup: borrar .ddsc/.avtx source original
-                    try { if (File.Exists(inputPath)) File.Delete(inputPath); } catch { }
+                    // El cleanup central del toolkit borra el .ddsc/.avtx original si existe .png hermano.
                     r.Steps.Add("DDSC -> DDS -> PNG");
                 }
                 try {
@@ -269,7 +333,40 @@ namespace Rage2Toolkit
                 return r;
             }
 
-            // Texturas: PNG/JPG/BMP/TGA/DDS -> DDSC
+            // MANUAL AVTX BUILD: si tenemos el header original (128B de un .avtx/.ddsc RAGE 2)
+            // construimos el AVTX a mano. Evita ddscConvert que reparte mips en .atx1/.atx2 (convencion GZ).
+            if (origAvtxHeader != null && origAvtxHeader.Length >= 128 && origDxgi > 0 &&
+                (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp" || ext == ".tga"))
+            {
+                string _tc = FindTexconv(toolkitReleaseDir);
+                if (_tc == null) { r.Status = "FAIL"; r.Errors.Add("texconv no encontrado"); return r; }
+                int _mips = origAvtxHeader[0x14];
+                if (_mips < 1) _mips = 1;
+                string _f2 = MapDxgiToTexconv(origDxgi);
+                string _ddsTmp = Path.Combine(outputDir, Path.GetFileNameWithoutExtension(inputPath) + "__avtxbuild.dds");
+                try { if (File.Exists(_ddsTmp)) File.Delete(_ddsTmp); } catch { }
+                string _tcArgs = "-f " + _f2 + " -m " + _mips + " -y -o \"" + outputDir + "\" \"" + inputPath + "\"";
+                string _expected = Path.Combine(outputDir, Path.GetFileNameWithoutExtension(inputPath) + ".dds");
+                r = RunTool(_tc, _tcArgs, outputDir, "texconv (imagen->DDS mips=" + _mips + ")", r, L);
+                if (r.Status == "FAIL") return r;
+                if (!File.Exists(_expected)) { r.Status = "FAIL"; r.Errors.Add("texconv no produjo " + _expected); return r; }
+                byte[] _ddsAll = File.ReadAllBytes(_expected);
+                if (_ddsAll.Length < 128) { r.Status = "FAIL"; r.Errors.Add("DDS < 128 bytes"); return r; }
+                int _payloadLen = _ddsAll.Length - 128;
+                byte[] _avtx = new byte[128 + _payloadLen];
+                Array.Copy(origAvtxHeader, 0, _avtx, 0, 128);
+                Array.Copy(_ddsAll, 128, _avtx, 128, _payloadLen);
+                string _avtxPath = Path.Combine(outputDir, Path.GetFileNameWithoutExtension(inputPath) + ".ddsc");
+                File.WriteAllBytes(_avtxPath, _avtx);
+                try { File.Delete(_expected); } catch { }
+                r.OutputPath = _avtxPath;
+                r.Status = "OK";
+                r.Steps.Add("PNG -> DDS (texconv, " + _mips + " mips) -> AVTX manual (" + _avtx.Length + " bytes)");
+                L("[conv] AVTX manual build: " + _avtx.Length + " bytes, mips=" + _mips + ", dxgi=" + origDxgi);
+                return r;
+            }
+
+            // Texturas: PNG/JPG/BMP/TGA/DDS -> DDSC (fallback con ddscConvert si no hay header original)
             if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp" || ext == ".tga" ||
                 ext == ".dds" || targetType == "ddsc" || targetType == "avtx" || targetType == "texture")
             {
@@ -288,8 +385,10 @@ namespace Rage2Toolkit
                 else
                 {
                     if (texconv == null) { r.Status = "FAIL"; r.Errors.Add("texconv no encontrado en " + toolkitReleaseDir + "\\bin"); return r; }
-                    string _fmt = PickFormatForPath(inputPath);
-            string texconvArgs = "-f " + _fmt + " -m 0 -y -o \"" + outputDir + "\" \"" + inputPath + "\"";
+                    string _fmt;
+                    if (origDxgi > 0) { _fmt = MapDxgiToTexconv(origDxgi); L("[conv] using original DXGI " + origDxgi + " -> " + _fmt); }
+                    else { _fmt = PickFormatForPath(inputPath); }
+                    string texconvArgs = "-f " + _fmt + " -y -o \"" + outputDir + "\" \"" + inputPath + "\"";
                     r = RunTool(texconv, texconvArgs, outputDir, "texconv (imagen->DDS)", r, L);
                     if (r.Status == "FAIL") return r;
 

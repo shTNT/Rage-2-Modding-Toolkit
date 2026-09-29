@@ -1082,6 +1082,126 @@ namespace Rage2Toolkit
 
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
+            // CLI mode (testing / scripting) - v2.1.0
+            var cliArgs = Environment.GetCommandLineArgs();
+            if (cliArgs.Length >= 2 && cliArgs[1] == "--pack")
+            {
+                try
+                {
+                    string cliSrc = null, cliOut = null;
+                    try { File.AppendAllText(@"D:\RAGE2MODDING\_outputs\_last_cli.txt", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " | ARGS: " + string.Join(" ", cliArgs) + Environment.NewLine); } catch { }
+                    for (int i = 2; i < cliArgs.Length; i++)
+                    {
+                        if (cliArgs[i] == "--src" && i + 1 < cliArgs.Length) cliSrc = cliArgs[i + 1];
+                        if (cliArgs[i] == "--out" && i + 1 < cliArgs.Length) cliOut = cliArgs[i + 1];
+                    }
+                    if (string.IsNullOrEmpty(cliSrc) || string.IsNullOrEmpty(cliOut))
+                    {
+                        Console.Error.WriteLine("usage: RAGE2Toolkit.exe --pack --src <folder> --out <zip>");
+                        Environment.Exit(2);
+                    }
+                    var cliMeta = ModMetadata.Default(System.IO.Path.GetFileNameWithoutExtension(cliOut));
+                    var cliRes = ModPackager.Build(cliSrc, cliOut, cliMeta, delegate(string s) { try { File.AppendAllText(cliOut + ".log", DateTime.Now.ToString("HH:mm:ss.fff") + " " + s + Environment.NewLine); } catch { } Console.WriteLine(s); });
+                    if (cliRes.Success)
+                    {
+                        Console.WriteLine("[pack] SUCCESS: " + cliRes.ZipPath + " (" + cliRes.AssetsCount + " assets, " + cliRes.ZipSizeBytes + " bytes)");
+                        Environment.Exit(0);
+                    }
+                    else
+                    {
+                        Console.Error.WriteLine("[pack] FAIL: " + cliRes.Error);
+                        Environment.Exit(3);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine("[pack] EXCEPTION: " + ex.Message);
+                    Environment.Exit(4);
+                }
+            }
+
+
+            if (cliArgs.Length >= 2 && cliArgs[1] == "--install")
+            {
+                try
+                {
+                    string cliZip = null, cliGame = null, cliTk = null;
+                    bool cliForce = false;
+                    int cliPrio = 100;
+                    for (int i = 2; i < cliArgs.Length; i++)
+                    {
+                        if (cliArgs[i] == "--zip" && i + 1 < cliArgs.Length) cliZip = cliArgs[i + 1];
+                        if (cliArgs[i] == "--game" && i + 1 < cliArgs.Length) cliGame = cliArgs[i + 1];
+                        if (cliArgs[i] == "--toolkit" && i + 1 < cliArgs.Length) cliTk = cliArgs[i + 1];
+                        if (cliArgs[i] == "--force") cliForce = true;
+                        if (cliArgs[i] == "--priority" && i + 1 < cliArgs.Length) { int.TryParse(cliArgs[i + 1], out cliPrio); }
+                    }
+                    if (string.IsNullOrEmpty(cliTk)) cliTk = AppContext.BaseDirectory;
+                    if (string.IsNullOrEmpty(cliZip) || string.IsNullOrEmpty(cliGame))
+                    {
+                        Environment.Exit(2);
+                    }
+                    var cliLogPath = cliZip + ".install.log";
+                    Action<string> cliLog = delegate(string s)
+                    {
+                        try { File.AppendAllText(cliLogPath, DateTime.Now.ToString("HH:mm:ss.fff") + " " + s + Environment.NewLine); } catch { }
+                    };
+                    var r = ModInstaller.Install(cliZip, cliGame, cliTk, cliLog, cliForce, cliPrio);
+                    if (r.Success) Environment.Exit(0);
+                    else Environment.Exit(3);
+                }
+                catch (Exception ex)
+                {
+                    try { File.AppendAllText(@"D:\RAGE2MODDING\_outputs\_last_cli.txt", "INSTALL EXC: " + ex.ToString() + Environment.NewLine); } catch { }
+                    Environment.Exit(4);
+                }
+            }
+            if (cliArgs.Length >= 2 && cliArgs[1] == "--uninstall")
+            {
+                try
+                {
+                    string cliModId = null, cliGame2 = null, cliTk2 = null;
+                    bool cliForce2 = false;
+                    for (int i = 2; i < cliArgs.Length; i++)
+                    {
+                        if (cliArgs[i] == "--mod" && i + 1 < cliArgs.Length) cliModId = cliArgs[i + 1];
+                        if (cliArgs[i] == "--game" && i + 1 < cliArgs.Length) cliGame2 = cliArgs[i + 1];
+                        if (cliArgs[i] == "--toolkit" && i + 1 < cliArgs.Length) cliTk2 = cliArgs[i + 1];
+                        if (cliArgs[i] == "--force") cliForce2 = true;
+                    }
+                    if (string.IsNullOrEmpty(cliTk2)) cliTk2 = AppContext.BaseDirectory;
+                    if (string.IsNullOrEmpty(cliModId) || string.IsNullOrEmpty(cliGame2))
+                    {
+                        Environment.Exit(2);
+                    }
+                    var unLog = System.IO.Path.Combine(cliTk2, "uninstall_" + cliModId + ".log");
+                    Action<string> cliLog2 = delegate(string s)
+                    {
+                        try { System.IO.File.AppendAllText(unLog, DateTime.Now.ToString("HH:mm:ss.fff") + " " + s + Environment.NewLine); } catch { }
+                    };
+                    var ru = UninstallEngine.Uninstall(cliModId, cliGame2, cliTk2, cliLog2, cliForce2);
+                    if (ru.Success) Environment.Exit(0);
+                    else Environment.Exit(3);
+                }
+                catch (Exception ex)
+                {
+                    try { System.IO.File.AppendAllText(@"D:\RAGE2MODDING\_outputs\_last_cli.txt", "UNINSTALL EXC: " + ex.ToString() + Environment.NewLine); } catch { }
+                    Environment.Exit(4);
+                }
+            }
+
+            if (cliArgs.Length >= 2 && cliArgs[1] == "--mod-manager")
+            {
+                string mmGame = null;
+                for (int i = 2; i < cliArgs.Length - 1; i++)
+                {
+                    if (cliArgs[i] == "--game") mmGame = cliArgs[i + 1];
+                }
+                Application.Run(new ModManagerForm(mmGame));
+                return;
+            }
+
+            Rage2Toolkit.ModsStore.EnsureFolders(AppDomain.CurrentDomain.BaseDirectory);
             Application.Run(new HomeForm());
         }
     }

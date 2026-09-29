@@ -16,6 +16,7 @@ namespace Rage2Toolkit
         // --- TECH-15: resolver opcional para nombres descriptivos ---
         // Si es null, comportamiento legacy: <HASH16>.<ext>
         public static Func<ulong, string> NameResolver = null;
+        public static Func<ulong, string> PathResolver = null;
 
         public static string SanitizeBasename(string path)
         {
@@ -252,6 +253,15 @@ namespace Rage2Toolkit
             }
         }
 
+        static string ResolveTarget(string outDir, ulong hash, string filename) {
+            string sub = null;
+            try { if (PathResolver != null) sub = PathResolver(hash); } catch { }
+            if (string.IsNullOrEmpty(sub)) return Path.Combine(outDir, filename);
+            string dir = Path.Combine(outDir, sub);
+            try { if (!Directory.Exists(dir)) Directory.CreateDirectory(dir); } catch { }
+            return Path.Combine(dir, filename);
+        }
+
         static bool ExtractAndWrite(MemoryMappedViewAccessor acc, TabFormat.Tab t, TabFormat.Entry e, Ctx ctx, string outDir, OodleDec oodle) {
             EnsureNameResolver();
             try {
@@ -261,7 +271,8 @@ namespace Rage2Toolkit
                     acc.ReadArray((long)e.Offset, head, 0, headLen);
                     string ext = Extractor.DetectExt(head);
                     if (ext == "unknown") ext = LookupExtFromFilelist(e.Hash, ext);
-                    string target = Path.Combine(outDir, (NameResolver != null && !string.IsNullOrEmpty(NameResolver(e.Hash)) ? NameResolver(e.Hash) + "_" : "") + e.Hash.ToString("X16") + "." + ext);
+                    string _fn = (NameResolver != null && !string.IsNullOrEmpty(NameResolver(e.Hash)) ? NameResolver(e.Hash) + "_" : "") + e.Hash.ToString("X16") + "." + ext;
+                    string target = ResolveTarget(outDir, e.Hash, _fn);
 
                     using (var fs = new FileStream(target, FileMode.Create, FileAccess.Write, FileShare.None, ctx.bufSize, FileOptions.SequentialScan)) {
                         long remaining = e.USize;
@@ -287,7 +298,8 @@ namespace Rage2Toolkit
                         if (!oodle(cbuf, 0, (int)e.CSize, dbuf, 0, (int)e.USize)) return false;
                         string ext = Extractor.DetectExt(dbuf);
                         if (ext == "unknown") ext = LookupExtFromFilelist(e.Hash, ext);
-                        string target = Path.Combine(outDir, (NameResolver != null && !string.IsNullOrEmpty(NameResolver(e.Hash)) ? NameResolver(e.Hash) + "_" : "") + e.Hash.ToString("X16") + "." + ext);
+                        string _fn = (NameResolver != null && !string.IsNullOrEmpty(NameResolver(e.Hash)) ? NameResolver(e.Hash) + "_" : "") + e.Hash.ToString("X16") + "." + ext;
+                        string target = ResolveTarget(outDir, e.Hash, _fn);
                         using (var fs = new FileStream(target, FileMode.Create, FileAccess.Write, FileShare.None, ctx.bufSize, FileOptions.SequentialScan)) {
                             fs.Write(dbuf, 0, (int)e.USize);
                         }
@@ -315,7 +327,8 @@ namespace Rage2Toolkit
                     if (!oodle(cbuf1, 0, (int)bc, dbuf1, 0, (int)bu)) return false;
                     string ext = Extractor.DetectExt(dbuf1);
 if (ext == "unknown") ext = LookupExtFromFilelist(e.Hash, ext);
-                    string target = Path.Combine(outDir, (NameResolver != null && !string.IsNullOrEmpty(NameResolver(e.Hash)) ? NameResolver(e.Hash) + "_" : "") + e.Hash.ToString("X16") + "." + ext);
+                    string _fn = (NameResolver != null && !string.IsNullOrEmpty(NameResolver(e.Hash)) ? NameResolver(e.Hash) + "_" : "") + e.Hash.ToString("X16") + "." + ext;
+                    string target = ResolveTarget(outDir, e.Hash, _fn);
 
                     using (var fs = new FileStream(target, FileMode.Create, FileAccess.Write, FileShare.None, ctx.bufSize, FileOptions.SequentialScan)) {
                         int take = (int)Math.Min(bu, remTotal);
@@ -392,6 +405,90 @@ if (ext == "unknown") ext = LookupExtFromFilelist(e.Hash, ext);
                 var _fl = LoadFilelistCache(_dd);
                 if (_fl.Count > 0) NameResolver = (h) => { string p; return _fl.TryGetValue(h, out p) ? SanitizeBasename(p) : null; };
             } catch { }
+        }
+
+        public static int ExtractMany(string gamePath, string outputDir, System.Collections.Generic.IEnumerable<string> hashHexes, Action<int, int, string> progress)
+        {
+            if (!Directory.Exists(outputDir)) Directory.CreateDirectory(outputDir);
+
+            var wanted = new HashSet<ulong>();
+            foreach (var h in hashHexes) {
+                try { wanted.Add(Convert.ToUInt64(h, 16)); } catch { }
+            }
+            if (wanted.Count == 0) return 0;
+
+            string initDir = Path.Combine(gamePath, "archives_win64", "initial");
+            string suppDir = Path.Combine(gamePath, "archives_win64", "supplemental");
+            var tabList = new List<string>();
+            if (Directory.Exists(initDir)) tabList.AddRange(Directory.GetFiles(initDir, "*.tab", SearchOption.AllDirectories));
+            if (Directory.Exists(suppDir)) tabList.AddRange(Directory.GetFiles(suppDir, "*.tab", SearchOption.AllDirectories));
+            tabList.RemoveAll(p => p.Contains("\\languages\\"));
+
+            var parsedTabs = new Dictionary<string, TabFormat.Tab>();
+            var jobsByTab = new Dictionary<string, List<TabFormat.Entry>>();
+            foreach (var tabPath in tabList) {
+                TabFormat.Tab t;
+                try { t = TabFormat.Tab.Parse(tabPath); } catch { continue; }
+                var matches = new List<TabFormat.Entry>();
+                foreach (var e in t.Entries) {
+                    if (wanted.Contains(e.Hash)) matches.Add(e);
+                }
+                if (matches.Count > 0) {
+                    parsedTabs[tabPath] = t;
+                    jobsByTab[tabPath] = matches;
+                }
+            }
+
+            // DIAG: log hashes no encontrados en ningun tab
+            try {
+                var foundH = new HashSet<ulong>();
+                foreach (var kv in jobsByTab) { foreach (var e in kv.Value) foundH.Add(e.Hash); }
+                var missing = new List<ulong>();
+                foreach (var h in wanted) { if (!foundH.Contains(h)) missing.Add(h); }
+                string diagPath = Path.Combine(outputDir, "_extract_fail_log.txt");
+                using (var sw = new StreamWriter(diagPath, false)) {
+                    sw.WriteLine("Wanted: " + wanted.Count + " | Found: " + foundH.Count + " | Missing: " + missing.Count);
+                    foreach (var h in missing) sw.WriteLine(h.ToString("X16"));
+                }
+            } catch { }
+
+            var oodle = new OodleDec(delegate(byte[] c, int co, int cl, byte[] d, int doff, int dl) {
+                return Oodle.Decompress(c, co, cl, d, doff, dl);
+            });
+
+            int done = 0;
+            int attempted = 0;
+            int total = wanted.Count;
+            int nThreads = Math.Min(Environment.ProcessorCount * 2, 32);
+
+            foreach (var kv in jobsByTab) {
+                string tabPath = kv.Key;
+                string arcPath = Path.ChangeExtension(tabPath, ".arc");
+                if (!File.Exists(arcPath)) continue;
+                TabFormat.Tab t = parsedTabs[tabPath];
+                var entries = kv.Value;
+
+                long arcLen = new FileInfo(arcPath).Length;
+                using (var mmf = MemoryMappedFile.CreateFromFile(arcPath, FileMode.Open, null, 0, MemoryMappedFileAccess.Read)) {
+                    Parallel.ForEach(entries,
+                        new ParallelOptions { MaxDegreeOfParallelism = nThreads },
+                        () => {
+                            var c = new Ctx(4 * 1024 * 1024);
+                            c.acc = mmf.CreateViewAccessor(0, arcLen, MemoryMappedFileAccess.Read);
+                            c.currentTab = 0;
+                            return c;
+                        },
+                        (e, state, ctx) => {
+                            bool w = ExtractAndWrite(ctx.acc, t, e, ctx, outputDir, oodle);
+                            if (w) System.Threading.Interlocked.Increment(ref done);
+                            int n = System.Threading.Interlocked.Increment(ref attempted);
+                            if (progress != null) progress(n, total, tabPath);
+                            return ctx;
+                        },
+                        (ctx) => { try { ctx.Dispose(); } catch { } });
+                }
+            }
+            return done;
         }
 
         public static bool ExtractSingle(string gamePath, string outputDir, string hashHex)

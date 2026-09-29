@@ -11,10 +11,10 @@
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <EnableCompressionInSingleFile>false</EnableCompressionInSingleFile>
     <DebugType>none</DebugType>
-    <Version>2.0.3</Version>
-    <AssemblyVersion>2.0.3.0</AssemblyVersion>
-    <FileVersion>2.0.3</FileVersion>
-    <InformationalVersion>2.0.3</InformationalVersion>
+    <Version>2.1.0</Version>
+    <AssemblyVersion>2.1.0</AssemblyVersion>
+    <FileVersion>2.1.0</FileVersion>
+    <InformationalVersion>2.1.0</InformationalVersion>
         <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>fragoneta.ico</ApplicationIcon>
     <Nullable>disable</Nullable>
@@ -30,18 +30,31 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Rage2Toolkit.cs" />
+<Compile Include="UiPolish.cs" />
     <Compile Include="ExtractorOpt.cs" />
     <Compile Include="SingleExtractForm.cs" />
     <Compile Include="Repack.cs" />
+    <Compile Include="TabFormat.cs" />
     <Compile Include="RepackerCore.cs" />
     <Compile Include="Wizards.cs" />
     <Compile Include="Updater.cs" />
     <Compile Include="CrashHandler.cs" />
     <Compile Include="Dialogs.cs" />
     <Compile Include="AssetConverters.cs" />
-    <Compile Include="AssetValidators.cs" />
+    <Compile Include="AssetValidators.cs" />    <Compile Include="ModMetadata.cs" />    <Compile Include="ModsStore.cs" />    <Compile Include="ModValidator.cs" />    <Compile Include="ModPackager.cs" />
+    <Compile Include="ModInstaller.cs" />
+    <Compile Include="ConflictChecker.cs" />
+    <Compile Include="UninstallEngine.cs" />
+    <Compile Include="ModManagerForm.cs" />
+<Compile Include="ModMetaDialog.cs" />
+<Compile Include="ModManagerHelpForm.cs" />
+<Compile Include="GuidelinesHelpForm.cs" />
   </ItemGroup>
   <ItemGroup>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="SettingsEditorCore.cs" />
+    <Compile Include="SettingsEditorForm.cs" />
   </ItemGroup>
 </Project>
 
