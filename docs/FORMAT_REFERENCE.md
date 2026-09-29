@@ -49,7 +49,7 @@ Run texconv -m 0 first if you upscaled.
 Files are identified by MurmurHash3 (x64, 128-bit) of their original path.
 The toolkit uses a community filelist to map hashes to names.
 
-- data/filelist.txt: 36,695 hash-to-name mappings (92.85% coverage, verified bit by bit)
+- data/filelist.txt: 103,428 hash-to-name mappings. 36,695 cover our gameplay corpus (92.85% of 39,519 hashes, verified bit by bit). The rest comes from REDxEYE's hash extractor (ApexPredator).
 
 The filelist data comes from the DECA project. Their reverse engineering
 effort is the reason extracted files can be given readable names instead

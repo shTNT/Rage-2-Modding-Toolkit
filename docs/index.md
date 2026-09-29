@@ -1,21 +1,21 @@
 ---
 layout: default
 title: RAGE 2 Modding Toolkit
-description: Portable GUI toolkit for extracting, editing and repacking RAGE 2 .arc archives. 92.85% filelist coverage.
+description: Portable GUI toolkit for extracting, editing and repacking RAGE 2 .arc archives. 92.85% gameplay coverage, 103,428-entry filelist.
 ---
 
 # RAGE 2 Modding Toolkit
 
 **A portable GUI toolkit for extracting, editing and repacking RAGE 2 assets.**
 
-Current release: [v2.0.5](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases/tag/v2.0.5) - filelist coverage **92.85%** (36,695 / 39,519 hashes).
+Current release: [v2.1.0](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases/tag/v2.1.0) - World Settings Editor, wizard redesign. Filelist: 103,428 entries shipped, **92.85%** of our gameplay corpus resolved (36,695 / 39,519).
 
 [Download latest release](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases/latest){: .btn }
 
 ## What it does
 
 - **Extracts** all 46 `.arc` archives (initial + supplemental, ~39,519 files in ~108 seconds).
-- **Identifies** files by hash using a bit-a-bit verified 36,695-entry filelist (92.85% coverage).
+- **Identifies** files by hash using a bit-a-bit verified 103,428-entry filelist (92.85% of our 39,519-hash gameplay corpus resolved).
 - **Converts** `.avtx` textures to editable `.dds` and back. Repacks modified files into the archive.
 - **Repacks** modified files back into `.arc` archives that the game loads on launch.
 - **Auto-copies** the Oodle runtime from your own RAGE 2 install.

@@ -360,3 +360,33 @@ License: CC0 1.0 Universal (public domain dedication).
 ================================================================================
 END OF DOCUMENT
 ================================================================================
+
+================================================================================
+  4.27  REDxEYE hash extractor contribution (2026-09-29)
+================================================================================
+
+After the ceiling of static analysis was reached at 36,695 / 39,519 (92.85%),
+a second source of hashes became available: REDxEYE's hash extractor,
+built for his ApexPredator tool.
+
+The extractor produced 103,428 hash-to-path mappings. Of these:
+
+    - 36,695 correspond to hashes we had already resolved (all verified
+      by re-hash, zero discrepancies).
+    - ~66,733 correspond to paths outside our gameplay corpus
+      (DLCs, extra regions, localization strings, and assets not
+      reachable from the 46 .arc archives we extract).
+
+The shipped `data/filelist.txt` now contains all 103,428 entries.
+Our own pre-REDxEYE filelist (36,695 entries) is preserved for
+historical reference at `data/sources/filelist_we_built.txt`.
+
+Coverage of the gameplay corpus remains **92.85%** (36,695 / 39,519).
+The remaining 2,824 gameplay orphans are unchanged - REDxEYE's universe
+does not include them either. They are engine-internal constants with
+no string in any accessible source.
+
+The toolkit itself is entirely our own work. REDxEYE's extractor gave
+us reach; the parser, writer, GUI and installer are ours.
+
+See the main README "Credits" section for the full attribution.

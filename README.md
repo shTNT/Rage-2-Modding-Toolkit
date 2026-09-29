@@ -434,10 +434,15 @@ The hash-to-path mapping is published at [`data/filelist.txt`](data/filelist.txt
 
 | Metric | Value |
 |--------|-------|
-| Entries | **36,695** |
-| Universe | 39,519 gameplay hashes |
-| Coverage | **92.85%** |
+| Entries shipped | **103,428** |
+| Sourced from | REDxEYE hash extractor (ApexPredator) |
+| Our own resolved hashes | 36,695 (pre-REDxEYE, kept under `data/sources/filelist_we_built.txt`) |
+| Gameplay corpus | 39,519 hashes (46 `.arc` files, initial + supplemental) |
+| Our corpus coverage | **92.85%** (36,695 / 39,519) |
+| Remaining corpus orphans | 2,824 (engine-internal constants, no string in any accessible source) |
 | Localization excluded | 45,739 hashes (separate tree) |
+
+The **103,428 entries** shipped in `filelist.txt` cover the REDxEYE universe (full asset catalog including DLCs, regions, localization paths). The **92.85%** figure refers specifically to our gameplay corpus - the 39,519 hashes actually present in the 46 `.arc` archives the toolkit extracts. Both figures are correct and describe different things.
 
 **Format:** `<HEX16>` + TAB + `<path>` · UTF-8 no BOM · LF line endings.
 
