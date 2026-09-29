@@ -39,3 +39,20 @@ CHANGELOG
 ================================================================================
 END
 ================================================================================
+
+================================================================================
+  UPDATE - 2026-09-29
+================================================================================
+
+The filelist shipped in `data/filelist.txt` has been expanded from
+36,695 entries to 103,428 entries by incorporating REDxEYE's hash
+extractor output. The verification below refers to the 36,695-entry
+baseline we built ourselves, which is preserved at
+`data/sources/filelist_we_built.txt`.
+
+Verification of the extended filelist (103,428 entries) would require
+the same bit-a-bit re-hash pass. Not performed yet. It does not affect
+the toolkit: every entry from the extended filelist that matches a
+gameplay hash (36,695 of them) has already been verified.
+
+================================================================================
