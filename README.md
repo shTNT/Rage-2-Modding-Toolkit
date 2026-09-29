@@ -13,7 +13,7 @@
 [![Filelist](https://img.shields.io/badge/filelist-92.85%25-success.svg)](data/filelist.txt)
 [![Downloads](https://img.shields.io/github/downloads/shTNT/Rage-2-Modding-Toolkit/total?color=orange&label=downloads)](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases)
 
-[Download latest](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases/latest) &nbsp;·&nbsp; [Filelist](data/filelist.txt) &nbsp;·&nbsp; [Methods](filelist/methods.txt) &nbsp;·&nbsp; [Issues](https://github.com/shTNT/Rage-2-Modding-Toolkit/issues)
+[Download latest](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases/latest) &nbsp;·&nbsp; [📖 Guide](docs/guide.html) &nbsp;·&nbsp; [Filelist](data/filelist.txt) &nbsp;·&nbsp; [Methods](filelist/methods.txt) &nbsp;·&nbsp; [Issues](https://github.com/shTNT/Rage-2-Modding-Toolkit/issues)
 
 </div>
 

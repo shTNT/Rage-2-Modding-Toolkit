@@ -11,6 +11,7 @@ description: Portable GUI toolkit for extracting, editing and repacking RAGE 2 .
 Current release: [v2.1.0](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases/tag/v2.1.0) - World Settings Editor, wizard redesign. Filelist: 103,428 entries shipped, **92.85%** of our gameplay corpus resolved (36,695 / 39,519).
 
 [Download latest release](https://github.com/shTNT/Rage-2-Modding-Toolkit/releases/latest){: .btn }
+[📖 Read the full user guide](guide.html){: .btn }
 
 ## What it does
 

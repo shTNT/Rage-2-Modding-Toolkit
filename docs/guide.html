@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAGE 2 Modding Toolkit - User Guide</title>
+<style>
+  :root {
+    --fg: #1a1a1a;
+    --fg-muted: #6a6a72;
+    --fg-faint: #9a9aa0;
+    --bg: #ffffff;
+    --bg-alt: #f7f7f9;
+    --bg-code: #f3f3f5;
+    --border: #e5e5ea;
+    --accent: #a020a0;
+    --accent-soft: #f6e9f6;
+    --warn: #a06000;
+    --warn-bg: #fff8e8;
+    --warn-border: #f0d9a0;
+    --ok: #2a7a3a;
+    --ok-bg: #eef8ef;
+    --ok-border: #b8dcc0;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: var(--fg);
+    background: var(--bg);
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 64px 48px 96px;
+    line-height: 1.65;
+    font-size: 15px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ------- HERO ------- */
+  .hero {
+    padding: 32px 0 48px;
+    border-bottom: 4px solid var(--accent);
+    margin-bottom: 48px;
+  }
+  .hero .kicker {
+    color: var(--accent);
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-size: 0.78em;
+    margin-bottom: 8px;
+  }
+  .hero h1 {
+    font-size: 2.6em;
+    line-height: 1.1;
+    margin: 0 0 12px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  .hero p {
+    font-size: 1.15em;
+    color: var(--fg-muted);
+    margin: 0;
+    max-width: 620px;
+  }
+  .hero .meta {
+    margin-top: 20px;
+    font-size: 0.85em;
+    color: var(--fg-faint);
+  }
+
+  /* ------- CHOOSE PATH ------- */
+  .choose {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 64px;
+  }
+  .choose a {
+    display: block;
+    padding: 24px 24px 22px;
+    background: var(--bg-alt);
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    text-decoration: none;
+    color: inherit;
+    transition: border-color 0.15s;
+  }
+  .choose a:hover { border-color: var(--accent); }
+  .choose .icon {
+    font-size: 1.8em;
+    display: block;
+    margin-bottom: 8px;
+  }
+  .choose .title {
+    font-weight: 700;
+    font-size: 1.05em;
+    color: var(--accent);
+    display: block;
+    margin-bottom: 4px;
+  }
+  .choose .sub {
+    color: var(--fg-muted);
+    font-size: 0.9em;
+    line-height: 1.5;
+  }
+
+  /* ------- TYPOGRAPHY ------- */
+  h2 {
+    font-size: 1.7em;
+    font-weight: 700;
+    margin: 72px 0 8px;
+    padding-top: 32px;
+    border-top: 3px solid var(--accent);
+    letter-spacing: -0.01em;
+  }
+  h2 .tag {
+    display: inline-block;
+    font-size: 0.55em;
+    background: var(--accent);
+    color: white;
+    padding: 3px 10px;
+    border-radius: 4px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    vertical-align: middle;
+    margin-left: 12px;
+    font-weight: 600;
+  }
+  h3 {
+    font-size: 1.15em;
+    font-weight: 700;
+    margin: 40px 0 8px;
+    color: var(--fg);
+  }
+  h4 {
+    font-size: 1em;
+    font-weight: 700;
+    margin: 24px 0 6px;
+    color: var(--fg-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 0.82em;
+  }
+  p { margin: 0 0 12px; }
+  ul, ol { padding-left: 22px; margin: 0 0 14px; }
+  li { margin-bottom: 6px; }
+  a { color: var(--accent); }
+  code {
+    font-family: "SF Mono", Consolas, Monaco, "Cascadia Mono", monospace;
+    background: var(--bg-code);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.88em;
+    border: 1px solid var(--border);
+  }
+  strong { font-weight: 700; }
+
+  /* ------- CALLOUTS ------- */
+  .callout {
+    padding: 16px 20px;
+    border-radius: 8px;
+    margin: 20px 0;
+    border-left: 4px solid;
+    font-size: 0.94em;
+  }
+  .callout p:last-child { margin-bottom: 0; }
+  .callout .label {
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 0.78em;
+    display: block;
+    margin-bottom: 6px;
+  }
+  .callout.warn {
+    background: var(--warn-bg);
+    border-color: var(--warn-border);
+  }
+  .callout.warn .label { color: var(--warn); }
+  .callout.ok {
+    background: var(--ok-bg);
+    border-color: var(--ok-border);
+  }
+  .callout.ok .label { color: var(--ok); }
+  .callout.info {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+  }
+  .callout.info .label { color: var(--accent); }
+
+  /* ------- PIPELINE ------- */
+  .pipeline {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin: 24px 0 32px;
+    padding: 20px;
+    background: var(--bg-alt);
+    border-radius: 10px;
+    flex-wrap: wrap;
+  }
+  .pipeline .step {
+    background: white;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 18px;
+    text-align: center;
+    min-width: 110px;
+  }
+  .pipeline .step .n {
+    font-size: 0.72em;
+    color: var(--accent);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    display: block;
+    margin-bottom: 2px;
+  }
+  .pipeline .step .t {
+    font-weight: 700;
+    font-size: 0.95em;
+  }
+  .pipeline .step .d {
+    font-size: 0.78em;
+    color: var(--fg-muted);
+    display: block;
+  }
+  .pipeline .arrow {
+    font-size: 1.5em;
+    color: var(--accent);
+    font-weight: 300;
+  }
+
+  /* ------- TABLES ------- */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0 24px;
+    font-size: 0.93em;
+  }
+  th, td {
+    text-align: left;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  th {
+    font-weight: 700;
+    background: var(--bg-alt);
+    font-size: 0.82em;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--fg-muted);
+  }
+
+  /* ------- STEPS ------- */
+  .steps {
+    counter-reset: step;
+    margin: 20px 0 32px;
+  }
+  .steps .step-item {
+    position: relative;
+    padding-left: 52px;
+    margin-bottom: 24px;
+    counter-increment: step;
+  }
+  .steps .step-item::before {
+    content: counter(step);
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: white;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.95em;
+  }
+  .steps .step-item h4 {
+    margin: 6px 0 8px;
+    color: var(--fg);
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 1.05em;
+  }
+
+  /* ------- DIVIDER ------- */
+  .divider {
+    text-align: center;
+    color: var(--fg-faint);
+    letter-spacing: 0.6em;
+    margin: 48px 0;
+    font-size: 0.9em;
+  }
+
+  /* ------- FOOTER ------- */
+  .footer {
+    margin-top: 96px;
+    padding-top: 32px;
+    border-top: 1px solid var(--border);
+    color: var(--fg-faint);
+    font-size: 0.85em;
+    text-align: center;
+  }
+  .footer a { color: var(--fg-muted); }
+
+  /* ------- PRINT ------- */
+  @media print {
+    body {
+      padding: 0;
+      max-width: 100%;
+      font-size: 10.5pt;
+      line-height: 1.5;
+    }
+    .hero { padding-top: 0; }
+    h2 { page-break-before: always; margin-top: 0; }
+    h2:first-of-type { page-break-before: auto; }
+    h3, h4 { page-break-after: avoid; }
+    .callout, table, .steps .step-item, .pipeline { page-break-inside: avoid; }
+    a { color: var(--fg); text-decoration: none; }
+    .choose a { border-color: var(--border); }
+    .divider { margin: 24px 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="kicker">RAGE 2 Modding Toolkit</div>
+  <h1>User Guide</h1>
+  <p>Everything from installing a friend's mod to publishing your own. Two workflows, one document.</p>
+  <div class="meta">Version 2.1.0 · 2026-09-29</div>
+</div>
+
+<div class="choose">
+  <a href="#part1">
+    <span class="icon">🎮</span>
+    <span class="title">I just want to install mods</span>
+    <span class="sub">You downloaded a <code>.zip</code> and want it running in your game. Five minutes.</span>
+  </a>
+  <a href="#part2">
+    <span class="icon">🛠️</span>
+    <span class="title">I want to create mods</span>
+    <span class="sub">Extract, edit, pack, share. Full workflow with per-type tips.</span>
+  </a>
+</div>
+
+<!-- ============================================================ -->
+<!-- PART 1                                                        -->
+<!-- ============================================================ -->
+<h2 id="part1">Part 1 · Installing mods <span class="tag">Players</span></h2>
+
+<p>You downloaded a mod — a <code>.zip</code> file from Nexus, ModDB, or a Discord server. Here is how to get it running.</p>
+
+<h3>What you need</h3>
+<ul>
+  <li>A legitimate copy of <strong>RAGE 2</strong> installed (Steam, GOG, Epic, wherever).</li>
+  <li>About <strong>1 GB free</strong> on the drive where you keep the toolkit — backups of the game's archives are stored there.</li>
+  <li>Windows 10 or 11 (x64).</li>
+</ul>
+
+<div class="callout info">
+  <span class="label">No tech skills required</span>
+  <p>You do not need to know what a <code>.arc</code> file is or where the game keeps its data. The toolkit handles all of that.</p>
+</div>
+
+<div class="divider">· · ·</div>
+
+<h3>Step 1 — Get the toolkit</h3>
+
+<div class="steps">
+  <div class="step-item">
+    <h4>Download the release</h4>
+    <p>Grab <code>RAGE2TOOLKIT-v2.1.0.7z</code> from the <a href="https://github.com/shTNT/Rage-2-Modding-Toolkit/releases/latest">GitHub releases page</a>.</p>
+  </div>
+  <div class="step-item">
+    <h4>Extract it anywhere</h4>
+    <p>Desktop, <code>D:\</code>, a folder in your documents — wherever you keep tools. You will get a folder containing <code>RAGE2Toolkit.exe</code>, a <code>bin\</code> folder, a <code>data\</code> folder, and a few text files.</p>
+  </div>
+  <div class="step-item">
+    <h4>Do not move files around</h4>
+    <p>The toolkit expects that exact layout. If you move <code>bin\</code> or <code>data\</code> out of the folder, it will not work.</p>
+  </div>
+</div>
+
+<h3>Step 2 — First launch</h3>
+
+<div class="steps">
+  <div class="step-item">
+    <h4>Double-click <code>RAGE2Toolkit.exe</code></h4>
+    <p>Do <strong>not</strong> launch it from a PowerShell or Command Prompt window. Windows inherits a wrong working directory that way and drag-and-drop stops working.</p>
+  </div>
+  <div class="step-item">
+    <h4>Point it at your game folder</h4>
+    <p>On first run the toolkit asks where RAGE 2 lives. That is the folder containing <code>Rage2.exe</code>. Common locations:</p>
+    <ul>
+      <li><code>C:\Program Files (x86)\Steam\steamapps\common\RAGE 2</code></li>
+      <li><code>C:\Program Files\Epic Games\RAGE2</code></li>
+      <li><code>C:\GOG Games\RAGE 2</code></li>
+    </ul>
+  </div>
+  <div class="step-item">
+    <h4>Let it auto-copy the Oodle runtime</h4>
+    <p>The toolkit needs a DLL (<code>oo2core_7_win64.dll</code>) that lives in your game folder. It copies it automatically on first launch and deletes it again on close. Nothing for you to do.</p>
+  </div>
+</div>
+
+<h3>Step 3 — Install the mod</h3>
+
+<div class="steps">
+  <div class="step-item">
+    <h4>Open the Mod Manager</h4>
+    <p>From the main menu, click <strong>MOD &amp; REPACK</strong>, then <strong>MOD MANAGER</strong>.</p>
+  </div>
+  <div class="step-item">
+    <h4>Drag the mod's <code>.zip</code> into the window</h4>
+    <p>Or click <strong>Install</strong> and pick the file.</p>
+  </div>
+  <div class="step-item">
+    <h4>Let it do its thing</h4>
+    <p>The toolkit reads the mod's metadata, figures out which archive files it touches, backs those up, rewrites them with the new content, and registers the mod. You will see it appear in the list.</p>
+  </div>
+</div>
+
+<div class="callout warn">
+  <span class="label">First install takes longer</span>
+  <p>The very first mod you install triggers a full backup of the affected archive. Depending on the mod, that can be anywhere from a few seconds to a minute. Later installs of the same archive are instant.</p>
+</div>
+
+<h3>Step 4 — Play</h3>
+
+<p>Launch RAGE 2 the way you normally do. Load a save. The mod should be there.</p>
+
+<div class="divider">· · ·</div>
+
+<h3>Managing installed mods</h3>
+
+<p>From the Mod Manager window:</p>
+
+<table>
+  <thead>
+    <tr><th>Button</th><th>What it does</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>Install</strong></td><td>Add another mod.</td></tr>
+    <tr><td><strong>Uninstall</strong></td><td>Remove a single mod. Rebuilds the archive with the remaining mods applied.</td></tr>
+    <tr><td><strong>Restore All</strong></td><td>Revert every archive back to its original, un-modded state.</td></tr>
+    <tr><td><strong>▲ / ▼</strong></td><td>Adjust priority. Higher number wins when two mods touch the same thing.</td></tr>
+    <tr><td><strong>?</strong></td><td>In-app help for that window.</td></tr>
+  </tbody>
+</table>
+
+<h3>Backups and recovery</h3>
+
+<ul>
+  <li>On the first install of any mod, the toolkit copies the affected archive files into <code>mods\backups\</code>.</li>
+  <li>Those backups never change unless you explicitly use <strong>Restore All</strong>.</li>
+  <li>If something breaks the game, open the Mod Manager, click <strong>Restore All</strong>. Your game folder goes back to the pristine state.</li>
+  <li>Manual restore: the backups are just files. You can copy them back into your game's <code>archives_win64\</code> folder if you know what you are doing.</li>
+</ul>
+
+<h3>Common problems</h3>
+
+<h4>The mod does not appear in the list after drag &amp; drop</h4>
+<p>The file you have is not a toolkit mod. Open the <code>.zip</code> — inside it should contain one or more files named with a 16-character hexadecimal code, like <code>FC0BD72039E0B01D.atx1</code> or <code>67B4C03CA7428D09.ddsc</code>. If instead you see textures, images, or a documentation file, you probably downloaded a resource pack that requires manual installation.</p>
+
+<h4>The game crashes on load after installing</h4>
+<p>Uninstall the last mod you added. If that fixes it, the mod itself has a problem. Report it to the mod author with the exact <code>.zip</code> name.</p>
+
+<h4>"Drift detected" error</h4>
+<p>Something modified your game's archive files outside of the Mod Manager — an old manual install, another tool, or a cracked patch. Run <strong>Restore All</strong> to get back to a clean state, then reinstall your mods. Advanced users can use the <code>--force</code> CLI flag to override the check, but you should know exactly why the drift happened first.</p>
+
+<!-- ============================================================ -->
+<!-- PART 2                                                        -->
+<!-- ============================================================ -->
+<h2 id="part2">Part 2 · Creating mods <span class="tag">Modders</span></h2>
+
+<p>You want to change something in the game and share it as a <code>.zip</code> other players can install. This section walks through the whole pipeline.</p>
+
+<h3>Overview</h3>
+
+<div class="pipeline">
+  <div class="step"><span class="n">01</span><span class="t">EXTRACT</span><span class="d">pull assets<br>out of the game</span></div>
+  <div class="arrow">→</div>
+  <div class="step"><span class="n">02</span><span class="t">EDIT</span><span class="d">use your tools<br>of choice</span></div>
+  <div class="arrow">→</div>
+  <div class="step"><span class="n">03</span><span class="t">PACK</span><span class="d">build a<br><code>.zip</code> mod</span></div>
+</div>
+
+<p>All three steps happen inside the toolkit. Extracted files come out with a descriptive name plus the 16-character asset hash. When you pack them, the toolkit uses only the hash — the descriptive part is just for you.</p>
+
+<h3>What you need</h3>
+<ul>
+  <li>Everything from Part 1.</li>
+  <li>Either the full extracted corpus (about 60 GB) or the specific assets you want to edit.</li>
+  <li>An external editor matching the asset type you are modifying — see the table below.</li>
+</ul>
+
+<h3>Asset-type reference</h3>
+
+<table>
+  <thead>
+    <tr><th>Asset type</th><th>Extensions</th><th>External tool</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Textures</strong><br><span style="color:#6a6a72;font-size:0.9em">weapons, characters, world, UI</span></td>
+      <td><code>.ddsc</code> <code>.avtx</code> <code>.atx1..9</code></td>
+      <td><a href="https://www.gimp.org/">GIMP</a> (free) · <a href="https://www.getpaint.net/">Paint.NET</a> (free) · Photoshop — anything that opens PNG or DDS</td>
+    </tr>
+    <tr>
+      <td><strong>Audio</strong><br><span style="color:#6a6a72;font-size:0.9em">SFX, music, dialogue</span></td>
+      <td><code>.ogg</code> <code>.riff</code> <code>.wav</code></td>
+      <td><a href="https://www.audacityteam.org/">Audacity</a> (free) · <a href="https://www.reaper.fm/">Reaper</a></td>
+    </tr>
+    <tr>
+      <td><strong>FMOD banks</strong><br><span style="color:#6a6a72;font-size:0.9em">sound containers — advanced</span></td>
+      <td><code>.fmod_bankc</code> <code>.fmod_sbankc</code> <code>.fsb</code></td>
+      <td><a href="https://www.fmod.com/download">FMOD Studio</a> — most users can skip this</td>
+    </tr>
+    <tr>
+      <td><strong>Video</strong><br><span style="color:#6a6a72;font-size:0.9em">cutscenes, menu loops</span></td>
+      <td><code>.bik</code> <code>.bk2</code> <code>.bikc</code></td>
+      <td><a href="https://www.radgametools.com/bnkdown.htm">RAD Video Tools</a> — the official Bink encoder/decoder</td>
+    </tr>
+    <tr>
+      <td><strong>UI</strong><br><span style="color:#6a6a72;font-size:0.9em">menus, HUD</span></td>
+      <td><code>.gfx</code> <code>.cfx</code></td>
+      <td><a href="https://github.com/jindrapetrik/jpexs-decompiler">JPEXS Free Flash Decompiler</a> (free)</td>
+    </tr>
+    <tr>
+      <td><strong>Game settings</strong><br><span style="color:#6a6a72;font-size:0.9em">spawns, difficulty, damage, weather</span></td>
+      <td><code>.rtpc</code></td>
+      <td>Built-in <strong>World Settings Editor</strong> — see below</td>
+    </tr>
+    <tr>
+      <td><strong>Scripts &amp; data</strong><br><span style="color:#6a6a72;font-size:0.9em">advanced / research</span></td>
+      <td><code>.adf</code> <code>.ee</code> <code>.bl</code> <code>.fl</code></td>
+      <td>Not directly editable with the current toolkit</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="divider">· · ·</div>
+
+<h3>Step 1 — Pick what you want to change</h3>
+
+<p>Three ways to get the assets you need. Choose the one that fits your mod.</p>
+
+<h4>Option A · Single asset browser</h4>
+<p>For when you know exactly what you want to edit.</p>
+<ol>
+  <li>From the main menu, click <strong>EXTRACT</strong> → <strong>BROWSE &amp; PICK MANUALLY</strong>.</li>
+  <li>Navigate the tree or search by keyword, path fragment, or hash.</li>
+  <li>Select your assets. Click <strong>Convert &amp; Extract</strong> to get editable PNG/DDS, or <strong>Extract raw only</strong> to get the game's native formats.</li>
+  <li>Files land in your chosen output folder, organized one folder per entity.</li>
+</ol>
+
+<h4>Option B · Full extract</h4>
+<p>For when you want to browse everything at your leisure, or you are doing multiple mods at once.</p>
+<ol>
+  <li>From the main menu, click <strong>EXTRACT</strong> → <strong>EXTRACT EVERYTHING</strong>.</li>
+  <li>Takes about 5 minutes on a modern NVMe drive, up to 30 minutes on older hardware. Needs ~60 GB free.</li>
+  <li>Result: every asset in the game, organised into <code>_EDITABLE\TEXTURES\</code>, <code>_EDITABLE\AUDIO\</code>, <code>_EDITABLE\SCRIPTS\</code>, and so on.</li>
+</ol>
+
+<h4>Option C · World Settings Editor</h4>
+<p>For changing game behaviour: how many enemies spawn, how hard they hit, how much health the player has, how damage types work, weather and lighting.</p>
+<ol>
+  <li>From the main menu, click <strong>MOD &amp; REPACK</strong> → <strong>WORLD SETTINGS EDITOR</strong>.</li>
+  <li>Pick a file from the dropdown at the top. A short description tells you what it controls.</li>
+  <li>Click a category in the tree. The properties appear on the right.</li>
+  <li>Edit the <strong>New value</strong> column. Modified rows turn magenta.</li>
+  <li>Click <strong>SAVE</strong>. The toolkit backs up the original, applies your changes, and builds the <code>.zip</code> for you. <strong>Skip straight to Step 4.</strong></li>
+</ol>
+
+<div class="callout info">
+  <span class="label">Tip</span>
+  <p>The single most impactful setting in the editor is <strong>Spawn Budget Pools → Civilians → Amount in World</strong>. Default is <code>0.5</code>. Set it to <code>3.0</code> and load a save in Wellspring. The difference is immediate.</p>
+</div>
+
+<h3>Step 2 — Edit the assets</h3>
+
+<p>Open the extracted files in your tool of choice. Save them back to the <strong>same extension</strong> the toolkit gave you — if a texture came out as <code>.png</code>, save it as <code>.png</code>. The toolkit converts it back to the game's native format when you pack.</p>
+
+<h4>Textures — good to know</h4>
+<ul>
+  <li><strong>Colour maps</strong> (<code>_dif</code>, <code>_emc</code>, <code>_albedo</code>, <code>_color</code>) — keep sRGB encoding when saving.</li>
+  <li><strong>Data maps</strong> (<code>_nrm</code>, <code>_mpm</code>, <code>_msk</code>, <code>_dtm</code>) — linear, do not apply sRGB.</li>
+  <li>Keep the original resolution unless you have a reason not to. Larger textures work but eat VRAM fast and can cause stutter.</li>
+</ul>
+
+<h4>Audio — good to know</h4>
+<ul>
+  <li>OGG Vorbis. 44.1 kHz or 48 kHz. Match the original's channel count — mono for SFX, stereo for music.</li>
+  <li>Bitrate: 192 kbps is a safe default. Higher for music, lower for short effects.</li>
+</ul>
+
+<h4>Video — good to know</h4>
+<ul>
+  <li>Match the codec (Bink 1 <code>.bik</code> vs Bink 2 <code>.bk2</code>) of the file you are replacing.</li>
+  <li>Keep the original resolution and framerate. The engine does not rescale.</li>
+  <li>RAD Video Tools can open both Bink 1 and Bink 2 files and re-encode them.</li>
+</ul>
+
+<h3>Step 3 — Pack the mod</h3>
+
+<ol>
+  <li>From the main menu, click <strong>MOD &amp; REPACK</strong> → <strong>REPACKER</strong>.</li>
+  <li>Drag the folder containing your edited files onto the wizard. Or click <strong>Browse</strong> and pick it.</li>
+  <li>Choose <strong>Raw</strong> if you already converted everything back to the game's native formats (e.g. saved as <code>.ddsc</code>). Choose <strong>Convert</strong> if the folder has PNGs, WAVs, or DDS files that the toolkit should convert for you.</li>
+  <li>Click <strong>Next</strong>. The wizard scans every file, matches it against the game's file list by hash, and shows a summary.</li>
+  <li>Click <strong>Next</strong> again. A dialog asks for a mod <strong>Name</strong> and <strong>Author</strong>.</li>
+  <li>The toolkit builds <code>&lt;slug&gt;.zip</code> in <code>RAGE2Toolkit_Output\mods_export\</code> and offers to open the folder.</li>
+</ol>
+
+<div class="callout ok">
+  <span class="label">The resulting .zip</span>
+  <p>Contains a <code>mod.json</code> with the metadata plus one file per edited asset, each named with its 16-character hash. This is what other players need to install your mod.</p>
+</div>
+
+<h3>Step 4 — Test it in your own game</h3>
+
+<ol>
+  <li>Drag the <code>.zip</code> into your own Mod Manager.</li>
+  <li>Click <strong>Install</strong>.</li>
+  <li>Launch RAGE 2, load a save, verify your change looks right.</li>
+  <li>If you need to adjust: modify your working folder, repack, reinstall. The Mod Manager overwrites the previous version cleanly.</li>
+</ol>
+
+<h3>Step 5 — Share it</h3>
+
+<p>Upload the <code>.zip</code> to your preferred modding platform. The main destinations:</p>
+
+<table>
+  <thead>
+    <tr><th>Platform</th><th>Why</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><a href="https://www.nexusmods.com/rage2">Nexus Mods</a></td><td>Biggest RAGE 2 modding audience. Free hosting up to 500 MB.</td></tr>
+    <tr><td><a href="https://www.moddb.com/games/rage-2">ModDB</a></td><td>General modding audience, less RAGE 2-specific but broader reach.</td></tr>
+    <tr><td><a href="https://discord.gg/x5AuPj7">Discord · DECA</a></td><td>The <code>#rage-2</code> channel. Active community, quick feedback.</td></tr>
+  </tbody>
+</table>
+
+<div class="callout info">
+  <span class="label">What to include in your upload</span>
+  <p>The <code>.zip</code> file itself, a short description of what it changes, and a screenshot if you can. Players who download it just drag it into their Mod Manager and click Install — no manual steps.</p>
+</div>
+
+<!-- ============================================================ -->
+<!-- ADVANCED                                                      -->
+<!-- ============================================================ -->
+<h2 id="advanced">Advanced · Making a world-alive mod</h2>
+
+<p>The single highest-impact mod you can make with this toolkit. RAGE 2's world feels empty by design — the spawn rates are conservative. You can change that.</p>
+
+<div class="steps">
+  <div class="step-item">
+    <h4>Open the World Settings Editor</h4>
+    <p>From the main menu: <strong>MOD &amp; REPACK</strong> → <strong>WORLD SETTINGS EDITOR</strong>.</p>
+  </div>
+  <div class="step-item">
+    <h4>Pick <em>Spawn Budget Pools</em></h4>
+    <p>It is the first file in the dropdown. Click <strong>Civilians</strong> in the tree.</p>
+  </div>
+  <div class="step-item">
+    <h4>Change <em>Amount in World</em></h4>
+    <p>The default is <code>0.5</code>. Set it to <code>3.0</code>.</p>
+  </div>
+  <div class="step-item">
+    <h4>SAVE, install, load</h4>
+    <p>SAVE builds the <code>.zip</code>. Install it in your Mod Manager. Launch the game and load a save in Wellspring.</p>
+  </div>
+  <div class="step-item">
+    <h4>Tune from there</h4>
+    <p>Try other categories one at a time: <strong>Combatants</strong> for more random fights, <strong>Drivers</strong> for more traffic, <strong>Encounters</strong> for more dynamic events. One change, test, then next.</p>
+  </div>
+</div>
+
+<div class="callout warn">
+  <span class="label">Do not go overboard</span>
+  <p>Very high values can hurt performance or crash the game. Stick to the range <code>0.1</code> to <code>20.0</code>. Increase in small steps and test in-game between changes.</p>
+</div>
+
+<!-- ============================================================ -->
+<!-- HELP                                                          -->
+<!-- ============================================================ -->
+<h2 id="help">Getting help</h2>
+
+<table>
+  <thead>
+    <tr><th>Where</th><th>What for</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><a href="https://discord.gg/x5AuPj7">Discord · DECA</a></td>
+      <td>The <code>#rage-2</code> channel. Active community, quick answers, modders and players alike.</td>
+    </tr>
+    <tr>
+      <td><a href="https://github.com/shTNT/Rage-2-Modding-Toolkit/issues">GitHub Issues</a></td>
+      <td>Bug reports and feature requests for the toolkit itself.</td>
+    </tr>
+    <tr>
+      <td><a href="https://github.com/shTNT/Rage-2-Modding-Toolkit/releases">GitHub Releases</a></td>
+      <td>Latest version, changelog, and download.</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Inside the toolkit, every window has a <strong>?</strong> button in the corner. It opens contextual help for that specific window, so you do not have to search for it here.</p>
+
+<div class="footer">
+  RAGE 2 Modding Toolkit v2.1.0 · <a href="https://github.com/shTNT/Rage-2-Modding-Toolkit">github.com/shTNT/Rage-2-Modding-Toolkit</a>
+</div>
+
+</body>
+</html>
