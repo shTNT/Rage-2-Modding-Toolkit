@@ -498,7 +498,7 @@ Built on top of other open-source projects:
 | [ApexToolset](https://github.com/PredatorCZ/ApexToolset) | `ddscConvert` + `R2SmallArchive` |
 | [DirectXTex](https://github.com/microsoft/DirectXTex) | `texconv` |
 
-Special thanks to the RAGE 2 modding community. And to **REDxEYE** ([ApexPredator](https://github.com/REDxEYE/APEX-PREDATOR)) for his hash extractor - which produced the 103,428-path database that ships with this toolkit and made the settings editor possible - for his file format research on the Avalanche Apex engine, and for his patience on the DECA Discord.
+Special thanks to the RAGE 2 modding community. And to **REDxEYE**, author of [ApexPredator](https://github.com/REDxEYE/APEX-PREDATOR), for his hash extractor - which produced the 103,428-path database that ships with this toolkit and made the settings editor possible - for his file format research on the Avalanche Apex engine, and for his patience on the DECA Discord.
 
 ---
 

@@ -101,7 +101,7 @@ Editor coverage is **445 / 989 = 45%**. The remaining 544 are engine-internal ha
 
 **The toolkit itself is built from scratch.** Every parser, writer, GUI and installer in this release is original work.
 
-Special thanks to **REDxEYE** ([ApexPredator](https://github.com/REDxEYE/APEX-PREDATOR)):
+Special thanks to **REDxEYE**, author of [ApexPredator](https://github.com/REDxEYE/APEX-PREDATOR):
 
 - His **hash extractor** produced the 103,428-path database that ships with this toolkit. It directly enabled the filelist expansion and the 444-name `settings_editor_names.json`.
 - His **file format research** on the Avalanche Apex engine clarified several structures (`.atxN` mipmap family, `modelc = adf`, `sarc.gtoc`) used as reference.
