@@ -1,3 +1,23 @@
+## [2.1.1] - 2026-09-30
+
+### Fixed
+- **Extract-all crash**: ShowStats() accedia a stepPanels[3] inexistente. Extraccion + classify ya funcionaban; el dialog "Failed" era un falso positivo al pintar el resumen. Ahora el wizard avanza al Step 4 de resumen y cierra limpio.
+- **Wizard Extract freeze**: BuildStep4() no se llamaba y faltaba GotoStep(3) al terminar. Ahora muestra resumen + "Finish".
+- **Home layout**: botones inferiores (Browse RAGE2.exe / Check update / Select output folder / Open output folder) en grid 2x2 simetrico. Link del path ya no se corta.
+- **World Settings Editor**: STAGE limpio al abrir (one-shot por sesion).
+
+### Added
+- **World Settings Editor multi-file session**: cache en memoria de cambios por (fileHash, ValueOffset). Editar multiples nodos y ficheros, un solo SAVE genera un ZIP con todos los .rtpc afectados. Confirm dialog lista los ficheros antes de aplicar.
+- **Wizard Extract**: eliminado boton "Extract all" redundante y label "Pick what interests you.". Reescrito hover de EXTRACT EVERYTHING sin jerga.
+- **EXTRACT EVERYTHING** ahora con misma anchura que BROWSE & PICK MANUALLY (640px).
+
+### Internal
+- Process.Start en using (6 sitios: explorer + ddscConvert batch + RunTool).
+- TrimLogBox con cap de 5000 lineas (defensivo, no era la causa del crash).
+- Diagnostic dumps en StartExtract (removibles en version futura).
+
+### Full Changelog
+- https://github.com/shTNT/Rage-2-Modding-Toolkit/compare/v2.1.0...v2.1.1
 # Changelog
 
 All notable changes to RAGE 2 Modding Toolkit.
