@@ -56,7 +56,53 @@ That is it.
 
 ---
 
-## What is new in v2.0.5
+## What is new in v2.1.0
+
+The toolkit now includes a native **World Settings Editor** that edits game settings previously untouched publicly. Save produces an installable `.zip` in one click.
+
+### World Settings Editor
+
+A C# editor that opens from `Wizard Modding` -> `WORLD SETTINGS EDITOR`. Edits 7 game setting files that were never publicly moddable:
+
+| File | Controls |
+|------|----------|
+| Spawn Budget Pools | How many civilians, vehicles, combatants, animals and encounters live in the open world |
+| Player Stats | Health, armor, movement, abilities, combat tuning |
+| Difficulty | Enemy scaling, cooldowns, damage per difficulty tier |
+| Damage Types | Bitmask definitions of every damage type (Fire, Bullet, EMP, Corruption, ...) |
+| Vehicle Types | Physics and handling per vehicle class |
+| Weather Settings | Presets, transitions, conditions |
+| Sun / Lighting | Global sun, sky, lighting |
+
+- **No extraction needed.** The 7 settings files ship inside `data/settings/` and are ready to edit.
+- **SAVE produces a mod.** Hit SAVE, pick a name + author, and the toolkit builds an installable `.zip` in `RAGE2Toolkit_Output/world_editor/`.
+- **Backup Manager.** Every change is snapshotted. Restore, delete or browse backups from inside the editor.
+- **Bitmask detection.** `Damage Types` is a bitmask node - only powers of 2 accepted, invalid values blocked before SAVE.
+- **Breadcrumb + semantic grouping.** Navigate `Difficulty > not_activew_damage > Weapons > T3 Cannon Cooldown (min)` with siblings grouped by meaning.
+
+### Wizard redesign
+
+- `Wizard Modding`: **MOD MANAGER** is the primary action, front and center. `WORLD SETTINGS EDITOR` and `REPACKER` are secondary.
+- `Wizard Extract`: **BROWSE & PICK MANUALLY** is the primary action. `EXTRACT EVERYTHING` is secondary.
+- Hover tooltips with fade in/out on every action button.
+
+### Hash database
+
+- 445 new hashes resolved for the settings editor (RED_EYE kv table + targeted cracking).
+- Editor coverage: 445 / 989 = 45%. Remaining 544 are engine-internal constants with no string in any accessible source.
+- Full structural classification (Hungarian prefix + camelCase + engine suffix).
+
+### Harness V4 (extended)
+
+- 6 new phases (20-25): `settings-bundled`, `editor-features-strings`, `modding-wizard-strings`, `extract-wizard-strings`, `files-array-no-settlements`, `cleanup`.
+- Harness paths fixed: was pointing to `v2.0.5-build`, now `v2.1.0-build`.
+
+---
+## Release history
+
+<details>
+<summary><b>v2.0.5</b> (2026-09-28) - Full Mod System + Mod Manager + DDSC fix</summary>
+
 
 This release turns the toolkit from "extractor + repacker" into a **full modding pipeline**.
 
@@ -155,8 +201,8 @@ The toolkit now builds the AVTX file manually: **original header (128 bytes) + f
 - Baseline 46/46 intact after every test.
 - Harness V4: 19/19 PASS.
 
----
-## Release history
+</details>
+
 
 <details>
 <summary><b>v2.0.4</b> (2026-09-26) - Semantic tree v3, race condition fixes, batch extraction</summary>

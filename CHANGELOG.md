@@ -4,6 +4,64 @@ All notable changes to RAGE 2 Modding Toolkit.
 
 ---
 
+## [2.1.0] - 2026-09-29
+
+**World Settings Editor release.** The toolkit now includes a native C# settings editor that produces installable mod zips on SAVE. Wizard redesign for both Modding and Extract flows. 445/989 settings-editor hashes resolved.
+
+### Added - World Settings Editor
+
+- New native C# editor (replaces the external PowerShell editor). No Python, no PowerShell, no side dependencies.
+- Edits 7 game setting files that were previously untouched publicly:
+  - `Spawn Budget Pools` - world population tuning (civilians, vehicles, combatants, animals, encounters)
+  - `Player Stats` - health, armor, movement, abilities, combat tuning
+  - `Difficulty` - enemy scaling, cooldowns, damage per difficulty tier
+  - `Damage Types` - bitmask definitions of every damage type
+  - `Vehicle Types` - physics and handling per vehicle class
+  - `Weather Settings` - presets, transitions, conditions
+  - `Sun / Lighting` - global sun, sky, and lighting
+- Settings files bundled into `data/settings/` - no manual extraction required on first run.
+- SAVE produces a `.zip` mod ready for the Mod Manager (auto-name dialog, auto-stage, auto-package).
+- Backup Manager dialog: list snapshots by timestamp, restore, delete, open folder.
+- Bitmask detection: `Damage Types` node auto-detects as bitmask, only powers of 2 accepted, invalid values block SAVE.
+- Breadcrumb in the properties view: `Difficulty > not_activew_damage > Weapons > T3 Cannon Cooldown (min)`.
+- Hierarchical grouping of sibling entries by semantic token (`Defence`, `Stage1`, `Stage2`, ...).
+- Source file descriptions shown under the file dropdown.
+- `Settlements` file removed from the editable list (405 entries, zero editable properties).
+
+### Added - Wizard redesign
+
+- **Wizard Modding**: `MOD MANAGER` is now the primary action (620x88 magenta). `WORLD SETTINGS EDITOR` and `REPACKER` are secondary (300x70, dimmed magenta).
+- **Wizard Extract**: `BROWSE & PICK MANUALLY` is now the primary entry (640x92 cyan). `EXTRACT EVERYTHING` is secondary (340x70, dimmed cyan).
+- Hover tooltips with fade in/out on every action button.
+
+### Added - Hash database
+
+- 445 new hashes resolved for the settings editor (from RED_EYE kv table + targeted cracking).
+- Classification by structural pattern (Hungarian prefix + camelCase/SCREAMING + engine suffix).
+- 4 entries promoted to "probable" after cross-referencing with the exe string table and RED_EYE.
+- Editor coverage: 445 / 989 = 45%. Remaining 544 are engine-internal hashes with no string in any accessible source.
+- `settings_editor_cracked.json` renamed to `settings_editor_names.json` (neutral name; some AV engines flag "cracked" as a keyword).
+
+### Added - Harness V4 (extended)
+
+- 6 new phases (20-25): `settings-bundled`, `editor-features-strings`, `modding-wizard-strings`, `extract-wizard-strings`, `files-array-no-settlements`, `cleanup`.
+- Harness paths fixed: previously pointed to `v2.0.5-build`, now `v2.1.0-build`.
+
+### Fixed
+
+- **CRLF vs LF handling in `Wizards.cs`.** Anchors written as LF failed against the CRLF file. Normalization now happens on read and write.
+- **`lblDesc` field scoping.** The file description label was a local in `BuildUI`, unreachable from the update method. Now a class field.
+- **Bitmask visual noise.** The `BITMASK - powers of 2` prefix appeared on every row. Now only in the column header, tooltip, and footer.
+- **Orphan brace fallback in `Wizards.cs`.** A replacement left a `}` glued to a class declaration. Fixed with a precise block replacement.
+- **`Copy-Item` relative path in build scripts.** `..\publish` resolved against the wrong CWD. Now absolute.
+
+### Changed
+
+- `Settings Editor` renamed to `World Settings Editor`.
+- `FILES` array reordered by usefulness (Spawn Budget Pools first, Sun/Lighting last).
+- 40 stale `.bak` files archived out of `release\`.
+
+---
 ## [2.0.5.1] - 2026-09-28
 
 Hotfix on top of v2.0.5. Same archive format, same mod format. No compatibility changes.
