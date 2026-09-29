@@ -1,51 +1,52 @@
 # RAGE 2 Modding Toolkit v2.1.1
 
-**Fecha**: 2026-09-30
-**SHA256**: 7264FB8900752ACA8D0EF10B1A147266F31D6BC2CF67747EEB97527F3E1FF24F
-**Tamaño**: 47.14 MB
+**Date:** 2026-09-30
+**SHA256:** `7264FB8900752ACA8D0EF10B1A147266F31D6BC2CF67747EEB97527F3E1FF24F`
+**Size:** 47.14 MB
 
 ## Highlights
 
-Esta version cierra un bug critico que impedia usar **EXTRACT EVERYTHING** en el release publico, y anade soporte multi-file al **World Settings Editor**.
+This release fixes a critical bug that broke **EXTRACT EVERYTHING** in the public v2.1.0 build, and adds multi-file support to the **World Settings Editor**.
 
-## Bug critico arreglado
+## Critical bug fixed
 
-El boton **EXTRACT EVERYTHING** crasheaba con "Index was out of range" al final del proceso, cuando ya habia extraido y clasificado los 39,673 archivos. Un falso positivo: el extract funcionaba, solo fallaba el popup de resumen.
+The **EXTRACT EVERYTHING** button used to crash with `Index was out of range` at the very end of the process, after it had already extracted and classified all 39,673 files. A false positive: extraction was working; only the summary popup failed.
 
-Ahora el wizard avanza al Step 4 con el resumen completo y cierra sin problemas.
+The wizard now advances to Step 4 with the full summary and closes cleanly.
 
-## World Settings Editor: edita multiples ficheros en una sesion
+## World Settings Editor: edit multiple files in one session
 
-Antes: al cambiar de nodo o de fichero, el valor editado se perdia. SAVE solo escribia la pagina visible.
+Before: switching node or file discarded any edited value. SAVE only wrote the visible page.
 
-Ahora:
-- Editas N nodos en M ficheros distintos.
-- Cambias de fichero, vuelves, todo sigue ahi.
-- SAVE abre un confirm dialog que lista los ficheros afectados.
-- Un solo ZIP con todos los .rtpc modificados.
+Now:
+
+- Edit N nodes across M files in the same session.
+- Switch file, come back, changes are still there.
+- SAVE opens a confirmation dialog listing every affected file.
+- A single ZIP containing every modified `.rtpc`.
 
 ## GUI
 
-- Home: botones inferiores en grid 2x2 simetrico.
-- Wizard Extract: fuera el boton redundante "Extract all" y el label huerfano.
-- EXTRACT EVERYTHING con misma anchura que el boton principal.
-- Help del editor de settings actualizado.
+- Home: bottom buttons rearranged in a symmetric 2x2 grid.
+- Wizard Extract: removed the redundant "Extract all" button and the orphan label.
+- EXTRACT EVERYTHING now matches the primary button width.
+- Settings Editor help text updated.
 
 ## Internal
 
-- 6 sitios de Process.Start ahora en using (handles liberados inmediatamente).
-- Diagnostico extendido en StartExtract (dumps a _outputs si hay excepcion).
+- 6 `Process.Start` sites wrapped in `using` (handles released immediately).
+- Extended diagnostics in `StartExtract` (dumps to `_outputs` on exception).
 
-## Instalacion
+## Installation
 
-1. Descarga RAGE2TOOLKIT-v2.1.1.7z
-2. Verifica SHA256: 7264FB8900752ACA8D0EF10B1A147266F31D6BC2CF67747EEB97527F3E1FF24F
-3. Extrae en cualquier carpeta
-4. Ejecuta RAGE2Toolkit.exe
-5. En la home, selecciona RAGE2.exe y output folder
+1. Download `RAGE2TOOLKIT-v2.1.1.7z`.
+2. Verify SHA256: `7264FB8900752ACA8D0EF10B1A147266F31D6BC2CF67747EEB97527F3E1FF24F`
+3. Extract anywhere.
+4. Run `RAGE2Toolkit.exe`.
+5. On the home screen, select `RAGE2.exe` and the output folder.
 
-## Notas
+## Notes
 
-- No incluye oo2core_7_win64.dll (se autocopia del juego al seleccionar RAGE2.exe).
-- Requiere RAGE 2 instalado localmente.
-- Compatible con mods existentes de v2.1.0.
+- `oo2core_7_win64.dll` is not bundled (auto-copied from the game when you select `RAGE2.exe`).
+- Requires RAGE 2 installed locally.
+- Compatible with existing v2.1.0 mods.
