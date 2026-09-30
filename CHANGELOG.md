@@ -23,6 +23,10 @@ All notable changes to RAGE 2 Modding Toolkit.
 - `TrimLogBox` capped at 5000 lines (defensive; was not the root cause).
 - Diagnostic dumps in `StartExtract` (removable in a future version).
 
+### Hotfix (2026-09-30, same day)
+
+- **World Settings Editor**: the editor now clears `WORK\` on open and reloads it from `release\data\settings\` (bundled originals). Previously, edits from a previous session accumulated in `WORK\` and the editor showed them as "Current", so a modder who opened the editor after a previous session would see stale values instead of the game defaults, and any SAVE would bake those stale values into the ZIP. Now every session starts from the original game values.
+- Asset `RAGE2TOOLKIT-v2.1.1.7z` replaced. SHA256 updated accordingly.
 ### Full Changelog
 
 - https://github.com/shTNT/Rage-2-Modding-Toolkit/compare/v2.1.0...v2.1.1
