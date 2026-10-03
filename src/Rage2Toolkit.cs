@@ -291,12 +291,12 @@ namespace Rage2Toolkit
         }
 
         public static ExtractorOpt.Stats ExtractAll(string gamePath, string outputBase, Action<string> log,
-            Action<int,int,string,int> onTabStart, Action<int,int,string,int,int> onTabDone, bool skipLanguages)
+            Action<int,int,string,int> onTabStart, Action<int,int,string,int,int> onTabDone, bool skipLanguages, System.Threading.CancellationToken cancelToken = default(System.Threading.CancellationToken))
         {
             if (!Oodle.IsLoaded) throw new Exception("Oodle no cargado. Configura el juego primero.");
             return ExtractorOpt.Extract(gamePath, outputBase, skipLanguages,
                 delegate(byte[] c, int co, int cl, byte[] d, int doff, int dl) { return Oodle.Decompress(c, co, cl, d, doff, dl); },
-                onTabStart, onTabDone, log);
+                onTabStart, onTabDone, log, cancelToken);
         }    }
 
     // ============================================================

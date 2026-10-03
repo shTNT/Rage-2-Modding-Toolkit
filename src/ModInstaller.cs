@@ -33,6 +33,10 @@ namespace Rage2Toolkit
 
             ModMetadata meta = null;
             var assets = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
+            // Hashes de assets .rtpc/.bin del zip. Se pasan a RepackerCore como
+            // forceRawHashes para preservar el formato raw vanilla. Solo afecta a
+            // este subset; el resto de assets siguen el flujo normal.
+            var _settingsHashes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             // FASE 1: READ
             log("[install] FASE 1 READ: " + zipPath);
@@ -62,6 +66,11 @@ namespace Rage2Toolkit
                         var ext = Path.GetExtension(name).TrimStart('.').ToLowerInvariant();
                         var hash = ModValidator.ParseHash(noExt);
                         if (string.IsNullOrEmpty(hash)) continue;
+
+                        // World Settings Editor: solo .rtpc/.bin preservan formato raw vanilla.
+                        // Cualquier otro formato (ddsc, atx1, ogg, bik, meshc...) sigue
+                        // comprimiendose con Oodle como siempre.
+                        if (ext == "rtpc" || ext == "bin") _settingsHashes.Add(hash.ToUpperInvariant());
 
                         if (entry.Length > 100L * 1024 * 1024) { res.Warnings.Add(name + " > 100 MB, skipped"); continue; }
 
@@ -272,7 +281,21 @@ namespace Rage2Toolkit
                 try
                 {
                     log("[install]   rebuild " + arcRel + " (" + kv.Value.Count + " replacements)");
-                    RepackerCore.Rebuild(tabPath, arcPath, kv.Value, tmpTab, tmpArc, log);
+                    // Solo pasamos force-raw para hashes .rtpc/.bin presentes en este arc.
+                    HashSet<ulong> forceRaw = null;
+                    if (_settingsHashes.Count > 0)
+                    {
+                        forceRaw = new HashSet<ulong>();
+                        foreach (var kvh in kv.Value)
+                        {
+                            var hx = kvh.Key.ToString("X16");
+                            if (_settingsHashes.Contains(hx)) forceRaw.Add(kvh.Key);
+                        }
+                        log("[install]   force-raw for " + forceRaw.Count + " settings (.rtpc/.bin)");
+                    }
+                    RepackerCore.Rebuild(tabPath, arcPath, kv.Value, tmpTab, tmpArc, log,
+                        oodleLevel: 1, overrideThreads: 0, overrideWriteThreads: 0, overrideBufMB: 0,
+                        forceRawHashes: forceRaw);
                 }
                 catch (Exception ex)
                 {

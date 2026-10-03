@@ -405,7 +405,7 @@ namespace Rage2Toolkit
                     foreach (string line in File.ReadAllLines(p))
                     {
                         if (string.IsNullOrWhiteSpace(line)) continue;
-                        string[] parts = line.Split(new char[] { '\t' }, 2);
+                        string[] parts = line.Split(new char[] { '\t', ' ' }, 2, StringSplitOptions.RemoveEmptyEntries);
                         if (parts.Length < 2) continue;
                         ulong h;
                         if (!ulong.TryParse(parts[0], System.Globalization.NumberStyles.HexNumber,

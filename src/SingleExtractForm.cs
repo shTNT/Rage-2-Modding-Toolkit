@@ -26,7 +26,7 @@ namespace Rage2Toolkit
 
         const int HEADER_H = 90;
         const int SEARCH_H = 50;
-        const int FOOTER_H = 76;
+        const int FOOTER_H = 110;
         const int SIDE_PAD = 20;
         const int GAP = 12;
         const string DUMMY = "\u0000dummy";
@@ -58,6 +58,7 @@ namespace Rage2Toolkit
         List<TypeNode> _types = new List<TypeNode>();
         List<AssetNode> _typesV3 = new List<AssetNode>();
         Dictionary<ulong, string> _hashToSubdir = new Dictionary<ulong, string>();
+        HashSet<ulong> _gameHashes = null;
         bool _useSchemaV3 = false;
 int _dbgMapCount = 0;
 int _dbgHits = 0;
@@ -103,7 +104,7 @@ class AssetNode
             // ===== FOOTER =====
             footer = new Panel();
             footer.Dock = DockStyle.Bottom;
-            footer.Height = FOOTER_H + 34;
+            footer.Height = FOOTER_H;
             footer.BackColor = C_HEAD;
             this.Controls.Add(footer);
             var gear = new RoundedButton();
@@ -490,8 +491,50 @@ class AssetNode
             }
         }
 
+        bool IsInGameHash(string hex) {
+            if (string.IsNullOrEmpty(hex) || _gameHashes == null) return false;
+            ulong h;
+            if (!ulong.TryParse(hex, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out h)) return false;
+            return _gameHashes.Contains(h);
+        }
+
+        void FilterNodeP1(AssetNode node) {
+            if (node == null) return;
+            if (node.Assets != null) {
+                node.Assets = node.Assets.Where(a => IsInGameHash(a.Hash)).ToList();
+            }
+            if (node.Children != null) {
+                var toRemove = new List<string>();
+                foreach (var kv in node.Children) {
+                    FilterNodeP1(kv.Value);
+                    bool emptyAssets = (kv.Value.Assets == null || kv.Value.Assets.Count == 0);
+                    bool emptyChildren = (kv.Value.Children == null || kv.Value.Children.Count == 0);
+                    if (emptyAssets && emptyChildren) toRemove.Add(kv.Key);
+                }
+                foreach (var k in toRemove) node.Children.Remove(k);
+            }
+            int cnt = (node.Assets != null ? node.Assets.Count : 0);
+            if (node.Children != null)
+                foreach (var kv in node.Children) cnt += kv.Value.Count;
+            node.Count = cnt;
+        }
+
+        void ApplyPhantomFilter() {
+            if (!_useSchemaV3 || _typesV3.Count == 0) return;
+            try {
+                if (_gameHashes == null) _gameHashes = ExtractorOpt.LoadGameHashes(gamePath);
+                if (_gameHashes == null || _gameHashes.Count == 0) return;
+                int before = _allHashes.Count;
+                _allHashes = _allHashes.Where(a => IsInGameHash(a.Hash)).ToList();
+                foreach (var root in _typesV3) FilterNodeP1(root);
+                int removed = before - _allHashes.Count;
+                try { statusLbl.Text = _allHashes.Count + " hashes (filtered " + removed + " phantom)"; } catch { }
+            } catch { }
+        }
+
         void PopulateTopLevel()
         {
+            ApplyPhantomFilter();
             tree.BeginUpdate();
             tree.Nodes.Clear();
             if (_useSchemaV3) {
@@ -966,20 +1009,21 @@ class AssetNode
                 || suffix == "_color" || suffix == "_diffuse" || suffix == "_alpha_dif";
         }
 
-        static bool TryConvertAtx1ToEditable(string atx1Path, string outDir, string toolkitRel, string target)
+        public static bool TryConvertAtx1ToEditable(string atx1Path, string outDir, string toolkitRel, string target)
         {
             try {
                 byte[] data = File.ReadAllBytes(atx1Path);
                 int size = data.Length;
-                int dim = 0;
+                int dimW = 0, dimH = 0, mipCount = 1;
                 bool isBC1 = false;
-                int pixelsBC1 = size * 2;
-                int d1 = (int)Math.Sqrt(pixelsBC1);
-                if (d1 > 0 && d1 * d1 == pixelsBC1 && (d1 & (d1 - 1)) == 0) { dim = d1; isBC1 = true; }
-                else {
-                    int d2 = (int)Math.Sqrt(size);
-                    if (d2 > 0 && d2 * d2 == size && (d2 & (d2 - 1)) == 0) { dim = d2; isBC1 = false; }
-                    else return false;
+                if (!TryGuessAtx1Format(size, out dimW, out dimH, out mipCount, out isBC1)) {
+                    int d1 = (int)Math.Sqrt(size * 2);
+                    if (d1 > 0 && d1 * d1 == size * 2 && (d1 & (d1 - 1)) == 0) { dimW = dimH = d1; isBC1 = true; mipCount = 1; }
+                    else {
+                        int d2 = (int)Math.Sqrt(size);
+                        if (d2 > 0 && d2 * d2 == size && (d2 & (d2 - 1)) == 0) { dimW = dimH = d2; isBC1 = false; mipCount = 1; }
+                        else { try { File.AppendAllText(Path.Combine(outDir, "_atx1_error.txt"), atx1Path + " | size=" + size + " no format match" + Environment.NewLine); } catch { } return false; }
+                    }
                 }
                 string stem = Path.GetFileNameWithoutExtension(atx1Path);
                 string tmpDir = Path.Combine(outDir, "__atxtmp_" + Guid.NewGuid().ToString("N").Substring(0, 8));
@@ -987,21 +1031,26 @@ class AssetNode
                 string tmpDds = Path.Combine(tmpDir, stem + ".dds");
                 using (var fs = new FileStream(tmpDds, FileMode.Create, FileAccess.Write)) {
                     using (var bw = new BinaryWriter(fs, System.Text.Encoding.UTF8, true)) {
+                        uint ddsFlags = 0x1u | 0x2u | 0x4u | 0x1000u | 0x80000u;
+                        if (mipCount > 1) ddsFlags |= 0x20000u;
+                        uint ddsCaps = 0x1000u;
+                        if (mipCount > 1) ddsCaps |= 0x8u | 0x400000u;
+                        int pitchTop = ((dimW + 3) / 4) * ((dimH + 3) / 4) * (isBC1 ? 8 : 16);
                         bw.Write(new byte[] { 0x44, 0x44, 0x53, 0x20 });
                         bw.Write((uint)124);
-                        bw.Write((uint)(0x1 | 0x2 | 0x4 | 0x1000 | 0x80000));
-                        bw.Write((uint)dim);
-                        bw.Write((uint)dim);
-                        bw.Write((uint)size);
+                        bw.Write(ddsFlags);
+                        bw.Write((uint)dimH);
+                        bw.Write((uint)dimW);
+                        bw.Write((uint)pitchTop);
                         bw.Write((uint)0);
-                        bw.Write((uint)1);
+                        bw.Write((uint)mipCount);
                         for (int i = 0; i < 11; i++) bw.Write((uint)0);
                         bw.Write((uint)32);
                         bw.Write((uint)0x4);
                         if (isBC1) bw.Write(new byte[] { 0x44, 0x58, 0x54, 0x31 });
                         else       bw.Write(new byte[] { 0x44, 0x58, 0x54, 0x35 });
                         bw.Write((uint)0); bw.Write((uint)0); bw.Write((uint)0); bw.Write((uint)0); bw.Write((uint)0);
-                        bw.Write((uint)0x1000); bw.Write((uint)0); bw.Write((uint)0); bw.Write((uint)0); bw.Write((uint)0);
+                        bw.Write(ddsCaps); bw.Write((uint)0); bw.Write((uint)0); bw.Write((uint)0); bw.Write((uint)0);
                     }
                     fs.Write(data, 0, data.Length);
                 }
@@ -1034,6 +1083,41 @@ class AssetNode
                 if (!_ok) { try { File.AppendAllText(Path.Combine(outDir, "_atx1_error.txt"), atx1Path + " | finalPng missing tmpDir=" + Directory.Exists(tmpDir) + " outPng=" + File.Exists(outPng) + Environment.NewLine); } catch { } }
                 return _ok;
             } catch (Exception ex) { try { File.AppendAllText(Path.Combine(outDir, "_atx1_error.txt"), atx1Path + " | outer " + ex.GetType().Name + ": " + ex.Message + Environment.NewLine); } catch { } return false; }
+        }
+
+        static bool TryGuessAtx1Format(int size, out int w, out int h, out int mips, out bool isBC1)
+        {
+            w = 0; h = 0; mips = 1; isBC1 = false;
+            var cands = new List<int[]>();
+            int[] dims = { 8192, 4096, 2048, 1024, 512, 256, 128, 64, 32, 16, 8, 4 };
+            int[] bss  = { 8, 16 };
+            foreach (int bs in bss)
+                foreach (int W in dims)
+                    foreach (int H in dims)
+                    {
+                        long total = 0;
+                        for (int i = 0; i < 14; i++)
+                        {
+                            int mw = Math.Max(W >> i, 1);
+                            int mh = Math.Max(H >> i, 1);
+                            int bx = (mw + 3) / 4;
+                            int by = (mh + 3) / 4;
+                            total += (long)bx * by * bs;
+                            if (total == size) { cands.Add(new int[] { W, H, i + 1, bs }); break; }
+                            if (total > size) break;
+                        }
+                    }
+            if (cands.Count == 0) return false;
+            System.Func<int, int> L2 = x => (int)Math.Round(Math.Log(x, 2));
+            var best = cands
+                .OrderBy(c => (c[0] == c[1]) ? 0 : 1)
+                .ThenBy(c => Math.Abs(L2(c[0]) - L2(c[1])))
+                .ThenByDescending(c => (long)c[0] * c[1])
+                .ThenBy(c => c[2])
+                .ThenByDescending(c => c[0])
+                .First();
+            w = best[0]; h = best[1]; mips = best[2]; isBC1 = (best[3] == 8);
+            return true;
         }
 
         void BuildHashSubdirMap()
@@ -1080,7 +1164,8 @@ class AssetNode
             }
             if (node.Children != null) {
                 foreach (var kv in node.Children) {
-                    WalkAssetNode(kv.Value, folder);
+                    string childPath = folder + "/" + SanitizeFolder(kv.Key);
+                    WalkAssetNode(kv.Value, childPath);
                 }
             }
         }
@@ -1134,6 +1219,7 @@ class AssetNode
 
         void ExtractSelection()
         {
+            try { System.IO.File.AppendAllText(System.IO.Path.Combine(outputPath, "_extract_stage.log"), System.DateTime.Now.ToString("HH:mm:ss.fff") + " START ExtractSelection" + System.Environment.NewLine); } catch { }
             if (_checked.Count == 0) {
                 DarkDialog.Info("Nothing to extract. Mark items and use [+ Add to Selection].", "Empty selection");
                 return;
@@ -1157,7 +1243,7 @@ class AssetNode
             }
 
             int choice = 0;
-            using (var dlg = new ConvertPromptForm(nTex, nAud, nNative, nManual)) {
+            using (var dlg = new ConvertPromptForm(nTex, nAud, nNative, nManual, _prefsFormat, _prefsAudio)) {
                 dlg.ShowDialog(this);
                 choice = dlg.Choice;
             }
@@ -1195,6 +1281,7 @@ class AssetNode
                         } catch { }
                     });
                     fail = hashes.Count - ok;
+                  try { System.IO.File.AppendAllText(System.IO.Path.Combine(outputPath, "_extract_stage.log"), System.DateTime.Now.ToString("HH:mm:ss.fff") + " AFTER ExtractMany ok=" + ok + " fail=" + fail + System.Environment.NewLine); } catch { }
 
                     if (doConvert) {
                         try {
@@ -1329,7 +1416,8 @@ class AssetNode
                 int _okF = ok, _failF = fail, _atxSkippedF = _atxSkipped;
                 string _errF = errMsg;
                 try {
-                    this.BeginInvoke((Action)(() =>
+                  try { System.IO.File.AppendAllText(System.IO.Path.Combine(outputPath, "_extract_stage.log"), System.DateTime.Now.ToString("HH:mm:ss.fff") + " BEFORE final Invoke" + System.Environment.NewLine); } catch { }
+                    this.Invoke((Action)(() =>
                     {
                         this.Text = _origTitle;
                         this.UseWaitCursor = false;
@@ -1619,7 +1707,7 @@ class AssetNode
     public class ConvertPromptForm : Form
     {
         public int Choice = 0;
-        public ConvertPromptForm(int nTex, int nAud, int nNative, int nManual)
+        public ConvertPromptForm(int nTex, int nAud, int nNative, int nManual, string texFormat, string audioFormat)
         {
             this.Text = "Extract selection";
             this.ClientSize = new Size(530, 320);
@@ -1647,8 +1735,13 @@ class AssetNode
 
             var body = new Label();
             string msg = "";
-            if (nTex > 0) msg += "  " + (char)0x2022 + "  " + nTex + " texture(s) -> PNG editable" + (char)10;
-            if (nAud > 0) msg += "  " + (char)0x2022 + "  " + nAud + " audio(s) -> WAV editable" + (char)10;
+            string texLabel = (texFormat == "dds") ? "DDS editable" : "PNG editable";
+            string audLabel;
+            if (audioFormat == "ogg") audLabel = "OGG editable";
+            else if (audioFormat == "wav") audLabel = "WAV editable";
+            else audLabel = "kept as-is (no conversion)";
+            if (nTex > 0) msg += "  " + (char)0x2022 + "  " + nTex + " texture(s) -> " + texLabel + (char)10;
+            if (nAud > 0) msg += "  " + (char)0x2022 + "  " + nAud + " audio(s) -> " + audLabel + (char)10;
             if (nNative > 0) msg += "  " + (char)0x2022 + "  " + nNative + " native asset(s) -> copied as-is (no conversion)" + (char)10;
             if (nManual > 0) msg += "  " + (char)0x2022 + "  " + nManual + " asset(s) need external tools (skipped)" + (char)10;
             body.Text = msg.TrimEnd();

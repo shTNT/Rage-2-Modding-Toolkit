@@ -313,7 +313,7 @@ namespace Rage2Toolkit
                     int _ix = _bn.LastIndexOf('_');
                     string _sfx = _ix > 0 ? _bn.Substring(_ix + 1) : "";
                     bool _needSrgb = (_sfx == "dif" || _sfx == "emc" || _sfx == "albedo" || _sfx == "color" || _sfx == "diffuse");
-                    string _srgbFlags = _needSrgb ? "-srgbi -srgbo -f R8G8B8A8_UNORM_SRGB " : "-f R8G8B8A8_UNORM ";
+                    string _srgbFlags = _needSrgb ? "-srgbi -f R8G8B8A8_UNORM_SRGB " : "-f R8G8B8A8_UNORM ";
                     L("[conv] sRGB flags for " + _sfx + ": " + (_needSrgb ? "ON" : "off"));
                     r = RunTool(texconv, "-ft png " + _srgbFlags + "-y -o \"" + pngDir + "\" \"" + outDds + "\"", pngDir, "texconv (DDS->PNG)", r, L);
                     if (r.Status == "FAIL") return r;

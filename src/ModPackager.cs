@@ -56,7 +56,7 @@ namespace Rage2Toolkit
             if (string.IsNullOrEmpty(meta.Id)) meta.Id = ModMetadata.Slugify(meta.Name ?? "untitled");
             if (string.IsNullOrEmpty(meta.Name)) meta.Name = "Untitled Mod";
             if (string.IsNullOrEmpty(meta.Version)) meta.Version = "0.0.0";
-            if (string.IsNullOrEmpty(meta.CreatedWith)) meta.CreatedWith = "RAGE2Toolkit v2.1.0";
+            if (string.IsNullOrEmpty(meta.CreatedWith)) meta.CreatedWith = "RAGE2Toolkit v2.1.1";
             if (string.IsNullOrEmpty(meta.CreatedAt)) meta.CreatedAt = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
 
             if (File.Exists(outputZip)) File.Delete(outputZip);

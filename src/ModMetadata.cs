@@ -30,7 +30,7 @@ namespace Rage2Toolkit
                 Author = "Unknown",
                 Description = "",
                 Game = "RAGE2",
-                CreatedWith = "RAGE2Toolkit v2.1.0",
+                CreatedWith = "RAGE2Toolkit v2.1.1",
                 CreatedAt = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"),
             };
         }

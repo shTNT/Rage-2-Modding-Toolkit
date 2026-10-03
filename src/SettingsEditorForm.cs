@@ -26,12 +26,22 @@ namespace Rage2Toolkit
         // Orden: de mas util a menos. Settlements descartado (405 entries sin valores editables).
         public static readonly (string Hash, string Name, string Desc)[] FILES = new[] {
             ("FC0BD72039E0B01D", "Spawn Budget Pools",   "Control how many civilians, vehicles, combatants, animals and encounters live in the open world."),
+            ("33FB199032F32E37", "Asset Memory Budgets",  "12 ordinal budget slots (0..11) x 5 resource categories x (memory_max + soft_limit). Engine indexes slots by ordinal; role of each slot is not documented. Test one slot before scaling all 12."),
             ("9661597C2BA6B6EF", "Player Stats",         "Player health, armor, movement, abilities and combat tuning."),
             ("67B4C03CA7428D09", "Difficulty",           "Enemy scaling, cooldowns and damage tuning per difficulty tier."),
             ("2F6B4EC6033419CF", "Damage Types",         "Bitmask definitions of every damage type (Fire, Bullet, EMP, Corruption, ...)."),
             ("D779BE9109D9BB6F", "Vehicle Types",        "Physics and handling parameters for each vehicle class."),
             ("77637ABA456411A0", "Weather Settings",     "Weather presets, transitions and conditions."),
             ("2DBD1B76CC037780", "Sun / Lighting",       "Global sun, sky and lighting setup for the world."),
+            ("1991948CE05363E4", "Post Effects",           "Bloom, tonemap, exposure, color grading, DOF, motion blur, chromatic aberration, film grain, SSAO, HDR."),
+            // ===== v1 spawn_defs (linear entry tables) =====
+            ("FF2002F3B254A8D6", "Spawn Vehicle Defs",    "Vehicle prefabs + spawn weight (v1). 119 entries. 114 weight=50 (cars/convoy), 5 weight=100 (bikes)."),
+            ("A6D67A0901ABC820", "Spawn Combatant Defs",  "Combatant prefabs + float tiers (v1). 235 entries, 56 with numeric props (float_a 0.6-0.7, float_b 0.3-0.4, is_heavy 0/1)."),
+            ("487726AB8BF3CF86", "Spawn Driver Defs",     "Driver prefabs for traffic (v1). 37 entries, catalog only."),
+            ("6905DA0E9FB1BCF7", "Spawn Civilian Defs",   "Civilian / NPC prefabs (v1). 381 entries, catalog only."),
+            ("96A9FA2210273CBE", "Spawn Encounter Defs",  "Encounter prefabs for open world events (v1). 270 entries, catalog only."),
+            ("DCE68976CF8E7BD4", "Spawn Weapon Defs",     "Weapon catalog used by enemies (v1). 204 entries, catalog only."),
+            ("635E003ABC37D457", "Enemy Type Spawn Settings", "Per-enemy-type spawn knobs (v3). Not a catalog - actual spawn tuning."),
         };
 
         // === Colors ===
@@ -75,6 +85,67 @@ namespace Rage2Toolkit
         // Bitmask detection del nodo actual
         bool _currentNodeIsBitmask = false;
 
+        // === Session cache: cambios pendientes por (fileHash, ValueOffset) ===
+        readonly Dictionary<string, Dictionary<int, PendingChange>> _pending =
+            new Dictionary<string, Dictionary<int, PendingChange>>(StringComparer.OrdinalIgnoreCase);
+
+        int PendingCount()
+        {
+            int n = 0;
+            foreach (var kv in _pending) n += kv.Value.Count;
+            return n;
+        }
+
+        void SetPendingEntry(string hash, RTPCProp p, string nameHuman, string newDisplay, double newValue, bool isBitmask)
+        {
+            Dictionary<int, PendingChange> byOffset;
+            if (!_pending.TryGetValue(hash, out byOffset))
+            {
+                byOffset = new Dictionary<int, PendingChange>();
+                _pending[hash] = byOffset;
+            }
+            byOffset[p.ValueOffset] = new PendingChange
+            {
+                FileHash = hash,
+                ValueOffset = p.ValueOffset,
+                Type = p.Type,
+                Value = newValue,
+                NameTech = p.Name,
+                NameHuman = nameHuman,
+                OldDisplay = p.DisplayValue(),
+                NewDisplay = newDisplay,
+                IsBitmask = isBitmask
+            };
+        }
+
+        void RemovePendingEntry(string hash, int valueOffset)
+        {
+            Dictionary<int, PendingChange> byOffset;
+            if (_pending.TryGetValue(hash, out byOffset))
+            {
+                byOffset.Remove(valueOffset);
+                if (byOffset.Count == 0) _pending.Remove(hash);
+            }
+        }
+
+        bool TryGetPending(string hash, int valueOffset, out PendingChange pc)
+        {
+            pc = null;
+            Dictionary<int, PendingChange> byOffset;
+            if (_pending.TryGetValue(hash, out byOffset))
+            {
+                return byOffset.TryGetValue(valueOffset, out pc);
+            }
+            return false;
+        }
+
+        string FormatPendingStatus()
+        {
+            int total = PendingCount();
+            if (total == 0) return "Hover a row for the full explanation. Edit the 'New value' column, then click SAVE.";
+            return total + " unsaved change(s) in " + _pending.Count + " file(s) \u2014 click here to view, or click SAVE to build the mod.";
+        }
+
         public SettingsEditorForm()
         {
             BKUP = Path.Combine(OUTS, "_backups");
@@ -82,7 +153,33 @@ namespace Rage2Toolkit
             CLOG = Path.Combine(OUTS, "_changes_log.json");
             try { Directory.CreateDirectory(BKUP); } catch { }
             try { Directory.CreateDirectory(STAGE); } catch { }
+            // Sesion fresca: limpiar STAGE + WORK de sesiones previas.
+            // El toolkit es one-shot por sesion. Los .rtpc de WORK se recargan
+            // desde release\data\settings\ (bundled = original del juego) mas abajo.
+            try
+            {
+                if (Directory.Exists(STAGE))
+                {
+                    foreach (var f in Directory.GetFiles(STAGE, "*.rtpc"))
+                    {
+                        try { File.Delete(f); } catch { }
+                    }
+                }
+            }
+            catch { }
             try { Directory.CreateDirectory(EXDIR); } catch { }
+
+            try
+            {
+                if (Directory.Exists(EXDIR))
+                {
+                    foreach (var f in Directory.GetFiles(EXDIR, "*.rtpc"))
+                    {
+                        try { File.Delete(f); } catch { }
+                    }
+                }
+            }
+            catch { }
 
             // Bundled settings: release\data\settings\ - ANTES de tocar la UI,
             // para que LoadFile() encuentre los .rtpc ya disponibles.
@@ -104,6 +201,7 @@ namespace Rage2Toolkit
             StartPosition = FormStartPosition.CenterParent;
 
             BuildUI();
+            this.Load += WrapIntoTabs_Loaded;
             PopulateFileCombo();
 
             cboFile.SelectedIndexChanged += (s, e) => LoadFile();
@@ -393,28 +491,35 @@ namespace Rage2Toolkit
             lblCat = new Label
             {
                 Location = new Point(20, 10),
-                Size = new Size(900, 22),
+                Size = new Size(920, 22),
                 ForeColor = C_TEXT,
                 Font = new Font("Segoe UI", 10, FontStyle.Bold),
-                Text = "No node selected"
+                Text = "No node selected",
+                AutoEllipsis = true
             };
             footer.Controls.Add(lblCat);
 
             lblStatus = new Label
             {
                 Location = new Point(20, 34),
-                Size = new Size(900, 20),
+                Size = new Size(920, 20),
                 ForeColor = C_MUTED,
-                Font = new Font("Segoe UI", 8)
+                Font = new Font("Segoe UI", 8, FontStyle.Underline),
+                Cursor = Cursors.Hand,
+                AutoEllipsis = true
             };
+            lblStatus.Click += (s, e) => ShowPendingChanges();
+            var tipStatus = new ToolTip();
+            tipStatus.SetToolTip(lblStatus, "Click to view and navigate pending changes.");
             footer.Controls.Add(lblStatus);
 
             lblWarn = new Label
             {
                 Location = new Point(20, 58),
-                Size = new Size(900, 20),
+                Size = new Size(920, 20),
                 ForeColor = C_WARN,
-                Font = new Font("Segoe UI", 8, FontStyle.Italic)
+                Font = new Font("Segoe UI", 8, FontStyle.Italic),
+                AutoEllipsis = true
             };
             footer.Controls.Add(lblWarn);
 
@@ -571,7 +676,9 @@ namespace Rage2Toolkit
         // =========================================================
         // LoadFile (1:1: extrae hash con regex del texto del combo)
         // =========================================================
-        void LoadFile()
+        void LoadFile() { LoadFile(false); }
+
+        void LoadFile(bool clearCurrentHashPending)
         {
             string sel = cboFile.SelectedItem as string;
             if (string.IsNullOrEmpty(sel)) return;
@@ -579,6 +686,10 @@ namespace Rage2Toolkit
             if (!m.Success) return;
             string h = m.Groups[1].Value.ToUpperInvariant();
             string rtpc = Path.Combine(EXDIR, h + ".rtpc");
+
+            // Si venimos de un RESTORE, los cambios pendientes de ESTE hash ya no aplican.
+            if (clearCurrentHashPending && _pending.ContainsKey(h))
+                _pending.Remove(h);
 
             if (!File.Exists(rtpc))
             {
@@ -601,15 +712,56 @@ namespace Rage2Toolkit
             rtpcPath = rtpc;
 
             tree.Nodes.Clear();
-            if (rootNode != null) AddTreeNode(rootNode, null);
+            if (rootNode != null)
+            {
+                if (h == "33FB199032F32E37")
+                    BuildAmbTree(rootNode);
+                else
+                    AddTreeNode(rootNode, null);
+            }
             tree.ExpandAll();
 
             lblCat.Text = FILES.FirstOrDefault(x => x.Hash == h).Name;
-            lblStatus.Text = "File loaded.";
             UpdateFileDescription();
             lblWarn.Text = "";
             grid.Rows.Clear();
             currentNode = null;
+
+            // Auto-seleccionar el primer nodo con contenido editable -> el grid muestra algo al abrir.
+            SelectFirstEditableNode();
+
+            // Refrescar el status bar para reflejar pending changes reales (multi-file).
+            lblStatus.Text = FormatPendingStatus();
+        }
+
+        // Recorre el arbol buscando el primer nodo con props editables (type 1 o 2).
+        // Si encuentra uno, lo selecciona -> dispara RefreshGrid -> grid con contenido.
+        void SelectFirstEditableNode()
+        {
+            if (tree == null || tree.Nodes.Count == 0) return;
+            TreeNode found = FindFirstEditable(tree.Nodes[0]);
+            if (found != null)
+            {
+                tree.SelectedNode = found;
+                found.EnsureVisible();
+            }
+        }
+
+        TreeNode FindFirstEditable(TreeNode node)
+        {
+            if (node == null) return null;
+            var n = node.Tag as RTPCNode;
+            if (n != null && n.Props != null)
+            {
+                foreach (var p in n.Props)
+                    if (p.Type == 1 || p.Type == 2) return node;
+            }
+            foreach (TreeNode child in node.Nodes)
+            {
+                var r = FindFirstEditable(child);
+                if (r != null) return r;
+            }
+            return null;
         }
 
         // =========================================================
@@ -670,6 +822,127 @@ namespace Rage2Toolkit
                 if (!IsGenericToken(tokens[i])) return i;
             }
             return -1;
+        }
+
+        // =========================================================
+        // BuildAmbTree: render custom para Asset Memory Budgets
+        // (estructura 3 niveles: subtrees -> 12 slots -> 5 categorias -> 2 valores)
+        // =========================================================
+        const uint AMB_SUBTREE_CATEGORIES = 0x7469A239;
+        const uint AMB_SUBTREE_BUDGETS    = 0xA56F07E7;
+        const uint PROP_RESOURCE_TYPE     = 0x5ED906DD;
+
+        static string AmbResourceType(RTPCNode n)
+        {
+            if (n == null) return "?";
+            // 1. Prop resource_type (nodos de la subtree categories)
+            foreach (var p in n.Props)
+            {
+                if (p.Hash == PROP_RESOURCE_TYPE && p.Value is string s && !string.IsNullOrEmpty(s))
+                    return s;
+            }
+            // 2. Resolver el hash del nodo via SemanticMap (names.json / probable / experimental)
+            var info = SemanticMap.GetInfo(n.Name);
+            if (info != null && !string.IsNullOrEmpty(info.Name)
+                && !info.Name.StartsWith("unk_") && !info.Name.StartsWith("Unknown (")
+                && info.Name != "?")
+                return info.Name;
+            return n.Name;
+        }
+
+        // Ordinal real de cada slot (REDxEYE: lookup3("0")..lookup3("11"))
+        static readonly Dictionary<uint,int> AmbSlotOrdinal = new Dictionary<uint,int>
+        {
+            { 0x00D7146E, 0 }, { 0x9A92A17C, 1 }, { 0xB5805128, 2 }, { 0xB94F5D01, 3 },
+            { 0x2415FFE6, 4 }, { 0x14DDA5C9, 5 }, { 0xE10DCE2E, 6 }, { 0xF7CA9C57, 7 },
+            { 0x2E3582F7, 8 }, { 0x43409C73, 9 }, { 0xCD97B55C, 10 }, { 0x1C66272F, 11 },
+        };
+
+        void BuildAmbTree(RTPCNode root)
+        {
+            var rootT = tree.Nodes.Add("Asset Memory Budgets");
+            rootT.Tag = root;
+            rootT.ForeColor = C_TEXT;
+            rootT.NodeFont = new Font(tree.Font, FontStyle.Bold);
+            rootT.ToolTipText = "12 ordinal slots x 5 resource categories x (memory_max + soft_limit). Total: 120 editable values.";
+
+            RTPCNode catSub = null, budgetSub = null;
+            foreach (var c in root.Children)
+            {
+                if (c.Hash == AMB_SUBTREE_CATEGORIES) catSub = c;
+                else if (c.Hash == AMB_SUBTREE_BUDGETS) budgetSub = c;
+            }
+
+            // --- CATEGORIES ---
+            if (catSub != null)
+            {
+                var catT = rootT.Nodes.Add("Categories   (" + catSub.Children.Count + ")");
+                catT.Tag = catSub;
+                catT.ForeColor = Color.FromArgb(200, 200, 220);
+                catT.NodeFont = new Font(tree.Font, FontStyle.Bold);
+                catT.ToolTipText = "Resource type identifiers used by the budget slots.";
+                foreach (var cat in catSub.Children)
+                {
+                    string label = AmbResourceType(cat);
+                    var catNode = catT.Nodes.Add(label);
+                    catNode.Tag = cat;
+                    catNode.ForeColor = C_TEXT;
+                    catNode.ToolTipText = "resource_type = " + label;
+                }
+            }
+
+            // --- BUDGET SLOTS ---
+            if (budgetSub != null)
+            {
+                var bT = rootT.Nodes.Add("Budget Slots   (" + budgetSub.Children.Count + ")");
+                bT.Tag = budgetSub;
+                bT.ForeColor = Color.FromArgb(200, 200, 220);
+                bT.NodeFont = new Font(tree.Font, FontStyle.Bold);
+                bT.ToolTipText = "12 ordinal memory budget slots. Engine indexes them 0..11. Role of each slot is NOT documented in the file.";
+
+                // Ordenar slots por ordinal real (decodificado del hash)
+                var slotList = new List<RTPCNode>(budgetSub.Children);
+                slotList.Sort((a, b) =>
+                {
+                    int oa = AmbSlotOrdinal.ContainsKey(a.Hash) ? AmbSlotOrdinal[a.Hash] : 999;
+                    int ob = AmbSlotOrdinal.ContainsKey(b.Hash) ? AmbSlotOrdinal[b.Hash] : 999;
+                    return oa.CompareTo(ob);
+                });
+
+                for (int i = 0; i < slotList.Count; i++)
+                {
+                    var slot = slotList[i];
+                    int ordinal = AmbSlotOrdinal.ContainsKey(slot.Hash) ? AmbSlotOrdinal[slot.Hash] : i;
+                    var slotT = bT.Nodes.Add("Slot " + ordinal.ToString("D2"));
+                    slotT.Tag = slot;
+                    slotT.ForeColor = C_TEXT;
+                    slotT.NodeFont = new Font(tree.Font, FontStyle.Bold);
+                    slotT.ToolTipText = "Ordinal slot " + ordinal + " of 12. Structurally identical to the others. Test one slot at a time in-game before scaling all 12.";
+
+                    // Ordenar hijos por nombre de recurso para presentacion consistente
+                    var ordered = new List<RTPCNode>();
+                    var byName = new Dictionary<string, RTPCNode>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var c in slot.Children)
+                    {
+                        string nm = AmbResourceType(c);
+                        if (!byName.ContainsKey(nm)) byName[nm] = c;
+                    }
+                    foreach (var kv in byName.OrderBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase))
+                        ordered.Add(kv.Value);
+
+                    foreach (var cat in ordered)
+                    {
+                        string label = AmbResourceType(cat);
+                        int editables = 0;
+                        foreach (var p in cat.Props) if (p.Type == 1 || p.Type == 2) editables++;
+                        string display = label + (editables > 0 ? "   [" + editables + "]" : "");
+                        var catNode = slotT.Nodes.Add(display);
+                        catNode.Tag = cat;
+                        catNode.ForeColor = C_TEXT;
+                        catNode.ToolTipText = "Memory budget for '" + label + "' in Slot " + i;
+                    }
+                }
+            }
         }
 
         void AddTreeNode(RTPCNode n, TreeNode parent)
@@ -816,15 +1089,21 @@ namespace Rage2Toolkit
                 switch (info.Conf) { case "C": cntC++; break; case "P": cntP++; break; case "D": cntD++; break; case "I": cntI++; break; default: cntE++; break; }
 
                 string val = p.DisplayValue();
+                PendingChange pendingHit = null;
+                TryGetPending(currentHash, p.ValueOffset, out pendingHit);
+                string newVal = pendingHit != null ? pendingHit.NewDisplay : val;
                 string icon = info.Conf == "C" ? "OK" : info.Conf == "P" ? "\u2248" : info.Conf == "D" ? "~" : info.Conf == "I" ? "i" : "?";
 
-                int idx = grid.Rows.Add(icon, info.Name, val, val, info.Desc ?? "", p.Name);
+                int idx = grid.Rows.Add(icon, info.Name, val, newVal, info.Desc ?? "", p.Name);
                 var row = grid.Rows[idx];
 
                 if (info.Conf == "P") row.DefaultCellStyle.BackColor = Color.FromArgb(42, 36, 10);   // dark yellow
                 if (info.Conf == "D") row.DefaultCellStyle.BackColor = Color.FromArgb(45, 25, 10);   // dark orange
                 if (info.Conf == "E") row.DefaultCellStyle.BackColor = Color.FromArgb(45, 15, 15);   // dark red
                 if (info.Conf == "I") row.DefaultCellStyle.BackColor = Color.FromArgb(28, 28, 34);   // dark gray
+
+                if (pendingHit != null)
+                    row.DefaultCellStyle.BackColor = C_DIFF;
 
                 row.Tag = p;
                 // Columna Current (original, no editable) - gris apagado
@@ -833,6 +1112,12 @@ namespace Rage2Toolkit
                 row.Cells[2].Style.SelectionBackColor = Color.FromArgb(40, 40, 50);
                 row.Cells[2].Style.SelectionForeColor = Color.FromArgb(210, 210, 220);
                 row.Cells[2].Style.Font = new Font("Consolas", 9, FontStyle.Italic);
+                if (pendingHit != null)
+                {
+                    row.Cells[3].Style.BackColor = Color.FromArgb(70, 30, 80);
+                    row.Cells[3].Style.ForeColor = Color.FromArgb(240, 200, 255);
+                    row.Cells[3].ToolTipText = "Edited value (valid).";
+                }
                 row.Cells[0].Style.ForeColor = ConfColor(info.Conf);
                 row.Cells[0].Style.Font = new Font("Segoe UI", 11, FontStyle.Bold);
                 row.Cells[0].Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
@@ -884,7 +1169,7 @@ namespace Rage2Toolkit
                     newCol.HeaderCell.ToolTipText = "";
                 }
             }
-            lblStatus.Text = "Hover a row for the full explanation. Edit the 'New value' column, then click SAVE.";
+            lblStatus.Text = FormatPendingStatus();
             var warnParts = new List<string>();
             if (_currentNodeIsBitmask) warnParts.Add("\u2691 BITMASK: valid = 0 or powers of 2");
             if (cntP > 0) warnParts.Add(cntP + " probable");
@@ -967,52 +1252,70 @@ namespace Rage2Toolkit
             if (e.RowIndex < 0) return;
             if (grid.Columns[e.ColumnIndex].Name != "New") return;
             var row = grid.Rows[e.RowIndex];
-            // Bitmask validation
             var prop = row.Tag as RTPCProp;
             bool bitmaskInvalid = false;
+
             if (_currentNodeIsBitmask && prop != null && prop.Type == 1)
             {
-                string nv = Convert.ToString(row.Cells[3].Value);
-                int iv;
-                if (int.TryParse(nv, out iv))
+                string nv0 = Convert.ToString(row.Cells[3].Value);
+                int iv0;
+                if (int.TryParse(nv0, out iv0) && !IsValidBitmaskValue(iv0))
+                    bitmaskInvalid = true;
+            }
+
+            string oldVal = Convert.ToString(row.Cells[2].Value);
+            string newVal = Convert.ToString(row.Cells[3].Value);
+            bool edited = oldVal != newVal;
+            double parsedValue = 0;
+            bool numericOk = !edited || double.TryParse(newVal, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out parsedValue);
+
+            if (bitmaskInvalid)
+            {
+                row.Cells[3].Style.BackColor = Color.FromArgb(80, 20, 20);
+                row.Cells[3].Style.ForeColor = Color.FromArgb(255, 180, 180);
+                row.Cells[3].ToolTipText = "INVALID BITMASK VALUE \u2014 must be 0 or a power of 2 (1, 2, 4, 8, 16, ...)";
+                row.DefaultCellStyle.BackColor = C_ERROR;
+            }
+            else if (edited && numericOk)
+            {
+                row.Cells[3].Style.BackColor = Color.FromArgb(70, 30, 80);
+                row.Cells[3].Style.ForeColor = Color.FromArgb(240, 200, 255);
+                row.Cells[3].ToolTipText = "Edited value (valid).";
+                row.DefaultCellStyle.BackColor = C_DIFF;
+            }
+            else if (edited && !numericOk)
+            {
+                row.Cells[3].Style.BackColor = Color.FromArgb(80, 20, 20);
+                row.Cells[3].Style.ForeColor = Color.FromArgb(255, 180, 180);
+                row.Cells[3].ToolTipText = "Invalid numeric value.";
+                row.DefaultCellStyle.BackColor = C_ERROR;
+            }
+            else
+            {
+                row.Cells[3].Style.BackColor = Color.Empty;
+                row.Cells[3].Style.ForeColor = Color.Empty;
+                row.Cells[3].ToolTipText = "";
+                row.DefaultCellStyle.BackColor = C_PANEL;
+            }
+
+            if (prop != null && !string.IsNullOrEmpty(currentHash))
+            {
+                if (bitmaskInvalid || (edited && !numericOk))
                 {
-                    if (!IsValidBitmaskValue(iv))
-                    {
-                        bitmaskInvalid = true;
-                        row.Cells[3].Style.BackColor = Color.FromArgb(80, 20, 20);
-                        row.Cells[3].Style.ForeColor = Color.FromArgb(255, 180, 180);
-                        row.Cells[3].ToolTipText = "INVALID BITMASK VALUE \u2014 must be 0 or a power of 2 (1, 2, 4, 8, 16, ...)";
-                    }
-                    else
-                    {
-                        if (Convert.ToString(row.Cells[2].Value) != Convert.ToString(row.Cells[3].Value))
-                        {
-                            // editado y valido -> magenta suave
-                            row.Cells[3].Style.BackColor = Color.FromArgb(70, 30, 80);
-                            row.Cells[3].Style.ForeColor = Color.FromArgb(240, 200, 255);
-                            row.Cells[3].ToolTipText = "Edited value (valid).";
-                        }
-                        else
-                        {
-                            row.Cells[3].Style.BackColor = Color.Empty;
-                            row.Cells[3].Style.ForeColor = Color.Empty;
-                            row.Cells[3].ToolTipText = "";
-                        }
-                    }
+                    // Valores invalidos no se cachean.
+                }
+                else if (!edited)
+                {
+                    RemovePendingEntry(currentHash, prop.ValueOffset);
+                }
+                else
+                {
+                    string nameHuman = Convert.ToString(row.Cells[1].Value);
+                    SetPendingEntry(currentHash, prop, nameHuman, newVal, parsedValue, _currentNodeIsBitmask);
                 }
             }
 
-            if (bitmaskInvalid)
-                row.DefaultCellStyle.BackColor = C_ERROR;
-            else if (Convert.ToString(row.Cells[2].Value) != Convert.ToString(row.Cells[3].Value))
-                row.DefaultCellStyle.BackColor = C_DIFF;
-            else
-                row.DefaultCellStyle.BackColor = C_PANEL;
-
-            int n = 0;
-            foreach (DataGridViewRow r in grid.Rows)
-                if (Convert.ToString(r.Cells[2].Value) != Convert.ToString(r.Cells[3].Value)) n++;
-            lblStatus.Text = n > 0 ? (n + " unsaved change(s).") : "";
+            lblStatus.Text = FormatPendingStatus();
             UpdateBreadcrumb();
         }
 
@@ -1065,12 +1368,22 @@ namespace Rage2Toolkit
         // =========================================================
         void Revert()
         {
-            foreach (DataGridViewRow row in grid.Rows)
+            int total = PendingCount();
+            if (total == 0)
             {
-                row.Cells[3].Value = row.Cells[2].Value;
-                row.DefaultCellStyle.BackColor = C_PANEL;
+                lblStatus.Text = "Nothing to revert.";
+                return;
             }
-            lblStatus.Text = "Reverted (nothing saved).";
+            var r = MessageBox.Show(this,
+                "Discard ALL unsaved changes across all files?\r\n\r\n" +
+                total + " change(s) in " + _pending.Count + " file(s) will be lost.\r\n\r\n" +
+                "This does not touch the .rtpc files on disk.",
+                "Discard all changes", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+            if (r != DialogResult.Yes) return;
+            _pending.Clear();
+            if (tree.SelectedNode != null) RefreshGrid();
+            lblStatus.Text = "All unsaved changes discarded.";
+            UpdateBreadcrumb();
         }
 
         // =========================================================
@@ -1078,74 +1391,151 @@ namespace Rage2Toolkit
         // =========================================================
         void Save()
         {
-            if (string.IsNullOrEmpty(rtpcPath))
+            if (string.IsNullOrEmpty(currentHash))
             {
                 MessageBox.Show(this, "Load a file first.", "World Settings Editor");
                 return;
             }
-            var patches = new List<RTPCPatch>();
-            var changeList = new List<Dictionary<string, object>>();
-            foreach (DataGridViewRow row in grid.Rows)
-            {
-                string o = Convert.ToString(row.Cells[2].Value);
-                string nv = Convert.ToString(row.Cells[3].Value);
-                if (o == nv) continue;
-                var p = row.Tag as RTPCProp;
-                if (p == null) continue;
-                double v;
-                if (!double.TryParse(nv, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out v))
-                {
-                    MessageBox.Show(this, "Invalid numeric value for " + p.Name + ": " + nv, "Save");
-                    return;
-                }
-                patches.Add(new RTPCPatch { Offset = p.ValueOffset, Type = p.Type, Value = v, Name = p.Name });
-                changeList.Add(new Dictionary<string, object>
-                {
-                    { "name_tech", p.Name },
-                    { "name_human", Convert.ToString(row.Cells[1].Value) },
-                    { "old", o }, { "new", nv }, { "offset", p.ValueOffset }
-                });
-            }
-            if (patches.Count == 0)
+
+            int totalPending = PendingCount();
+            if (totalPending == 0)
             {
                 MessageBox.Show(this, "Nothing to save.", "World Settings Editor");
                 return;
             }
 
-            // Bitmask validation gate
-            if (_currentNodeIsBitmask)
+            var bad = new List<string>();
+            foreach (var fkv in _pending)
             {
-                var bad = new List<string>();
-                foreach (DataGridViewRow r in grid.Rows)
+                foreach (var ckv in fkv.Value)
                 {
-                    var pp = r.Tag as RTPCProp;
-                    if (pp == null || pp.Type != 1) continue;
-                    string nv = Convert.ToString(r.Cells[3].Value);
-                    int iv;
-                    if (!int.TryParse(nv, out iv)) continue;
-                    if (!IsValidBitmaskValue(iv)) bad.Add(pp.Name + " = " + nv);
-                }
-                if (bad.Count > 0)
-                {
-                    MessageBox.Show(this,
-                        "Some values are invalid for this BITMASK node.\r\n\r\nValid values are 0 or a power of 2 (1, 2, 4, 8, 16, ...).\r\n\r\nOffending rows:\r\n  " +
-                        string.Join("\r\n  ", bad),
-                        "Invalid bitmask value", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
+                    var pc = ckv.Value;
+                    if (pc.IsBitmask && pc.Type == 1)
+                    {
+                        int iv = (int)pc.Value;
+                        if (!IsValidBitmaskValue(iv))
+                            bad.Add(fkv.Key + " / " + pc.NameTech + " = " + pc.NewDisplay);
+                    }
                 }
             }
+            foreach (DataGridViewRow r in grid.Rows)
+            {
+                string o = Convert.ToString(r.Cells[2].Value);
+                string nv = Convert.ToString(r.Cells[3].Value);
+                if (o == nv) continue;
+                var pp = r.Tag as RTPCProp;
+                if (pp == null) continue;
+                double vtmp;
+                if (!double.TryParse(nv, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out vtmp))
+                    bad.Add("Visible / " + pp.Name + " = " + nv + " (not a number)");
+            }
+            if (bad.Count > 0)
+            {
+                MessageBox.Show(this,
+                    "Some values are invalid:" + "\r\n\r\n  " + string.Join("\r\n  ", bad),
+                    "Save blocked", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
 
-            // Backup
-            string hashDir = Path.Combine(BKUP, currentHash);
-            Directory.CreateDirectory(hashDir);
-            string ts = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-            string bakPath = Path.Combine(hashDir, ts + ".rtpc");
-            File.Copy(rtpcPath, bakPath, true);
+            var fileList = new System.Text.StringBuilder();
+            foreach (var fkv in _pending)
+            {
+                string friendly = fkv.Key;
+                foreach (var f in FILES) if (f.Hash == fkv.Key) friendly = f.Name + " (" + fkv.Key + ")";
+                fileList.AppendLine("  - " + friendly + "  [" + fkv.Value.Count + " change(s)]");
+            }
 
-            // Apply in-place
-            int applied = RTPCApplier.Apply(rtpcPath, patches);
+            var confirm = MessageBox.Show(this,
+                "Apply " + totalPending + " change(s) across " + _pending.Count + " file(s)?" + "\r\n\r\n" +
+                "Files that will be modified and packed:" + "\r\n" +
+                fileList.ToString() + "\r\n" +
+                "This will:" + "\r\n" +
+                "  - Write a backup of each affected .rtpc" + "\r\n" +
+                "  - Modify each .rtpc in-place" + "\r\n" +
+                "  - Stage all of them" + "\r\n" +
+                "  - Build a single mod .zip containing all affected files" + "\r\n\r\n" +
+                "Continue?",
+                "Confirm SAVE", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+            if (confirm != DialogResult.Yes) return;
 
-            // Log
+            if (!EnsureSessionMeta()) return;
+
+            var snapshot = new Dictionary<string, Dictionary<int, PendingChange>>(StringComparer.OrdinalIgnoreCase);
+            foreach (var kv in _pending)
+            {
+                var inner = new Dictionary<int, PendingChange>();
+                foreach (var ikv in kv.Value) inner[ikv.Key] = ikv.Value;
+                snapshot[kv.Key] = inner;
+            }
+
+            int filesWritten = 0;
+            int changesApplied = 0;
+            var logEntries = new List<object>();
+            var writtenHashes = new List<string>();
+
+            foreach (var fileKv in snapshot)
+            {
+                string hash = fileKv.Key;
+                string fileRtpc = Path.Combine(EXDIR, hash + ".rtpc");
+                if (!File.Exists(fileRtpc))
+                {
+                    MessageBox.Show(this, "File missing: " + fileRtpc, "Save", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                var patches = new List<RTPCPatch>();
+                var changeList = new List<Dictionary<string, object>>();
+                foreach (var changeKv in fileKv.Value)
+                {
+                    var pc = changeKv.Value;
+                    patches.Add(new RTPCPatch { Offset = pc.ValueOffset, Type = pc.Type, Value = pc.Value, Name = pc.NameTech });
+                    changeList.Add(new Dictionary<string, object>
+                    {
+                        { "name_tech", pc.NameTech },
+                        { "name_human", pc.NameHuman },
+                        { "old", pc.OldDisplay },
+                        { "new", pc.NewDisplay },
+                        { "offset", pc.ValueOffset }
+                    });
+                }
+
+                string bakPath = "";
+                try
+                {
+                    string hashDir = Path.Combine(BKUP, hash);
+                    Directory.CreateDirectory(hashDir);
+                    string tsBak = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                    bakPath = Path.Combine(hashDir, tsBak + ".rtpc");
+                    File.Copy(fileRtpc, bakPath, true);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(this, "Backup failed for " + hash + ":" + "\r\n" + ex.Message, "Save", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+
+                int applied = RTPCApplier.Apply(fileRtpc, patches);
+                changesApplied += applied;
+
+                string nameHuman = hash;
+                foreach (var f in FILES) if (f.Hash == hash) nameHuman = f.Name;
+                logEntries.Add(new Dictionary<string, object>
+                {
+                    { "timestamp", DateTime.Now.ToString("s") },
+                    { "file_hash", hash },
+                    { "file_name", nameHuman },
+                    { "node", "" },
+                    { "node_human", "" },
+                    { "backup", bakPath },
+                    { "changes", changeList }
+                });
+
+                string dest = Path.Combine(STAGE, hash + ".rtpc");
+                File.Copy(fileRtpc, dest, true);
+                filesWritten++;
+                writtenHashes.Add(hash);
+            }
+
             try
             {
                 var logArray = new List<object>();
@@ -1158,45 +1548,26 @@ namespace Rage2Toolkit
                     }
                     catch { }
                 }
-                var nameHuman = "";
-                foreach (var f in FILES) if (f.Hash == currentHash) nameHuman = f.Name;
-                var entry = new Dictionary<string, object>
-                {
-                    { "timestamp", DateTime.Now.ToString("s") },
-                    { "file_hash", currentHash },
-                    { "file_name", nameHuman },
-                    { "node", currentNode != null ? currentNode.Name : "" },
-                    { "node_human", currentNode != null ? SemanticMap.GetInfo(currentNode.Name).Name : "" },
-                    { "backup", bakPath },
-                    { "changes", changeList }
-                };
-                logArray.Add(entry);
+                logArray.AddRange(logEntries);
                 File.WriteAllText(CLOG, JsonSerializer.Serialize(logArray, new JsonSerializerOptions { WriteIndented = true }));
             }
             catch { }
 
-            // Stage
-            string dest = Path.Combine(STAGE, currentHash + ".rtpc");
-            File.Copy(rtpcPath, dest, true);
+            _pending.Clear();
+            LoadFile();
+            lblStatus.Text = "SAVED: " + changesApplied + " change(s) in " + filesWritten + " file(s).";
 
-            lblStatus.Text = "SAVED: " + applied + " change(s).";
-
-            foreach (DataGridViewRow row in grid.Rows)
-            {
-                row.Cells[2].Value = row.Cells[3].Value;
-                row.DefaultCellStyle.BackColor = C_PANEL;
-            }
-
-            // Build mod .zip
             try
             {
-                if (!EnsureSessionMeta()) return;
                 string zipPath = BuildModZip();
                 if (!string.IsNullOrEmpty(zipPath))
                 {
                     lblWarn.Text = "MOD BUILT: " + zipPath;
                     var r = MessageBox.Show(this,
-                        "Mod built:\r\n\r\n" + zipPath + "\r\n\r\nOpen the folder?",
+                        "Mod built:" + "\r\n\r\n" + zipPath + "\r\n\r\n" +
+                        "Files: " + filesWritten + "   Changes: " + changesApplied + "\r\n" +
+                        "Contents: " + string.Join(", ", writtenHashes) + "\r\n\r\n" +
+                        "Open the folder?",
                         "Mod built", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
                     if (r == DialogResult.Yes)
                     {
@@ -1213,13 +1584,12 @@ namespace Rage2Toolkit
                 }
                 else
                 {
-                    lblWarn.Text = "Backup saved   |   Stage: " + dest;
+                    lblWarn.Text = "Stage ready but no .rtpc found.";
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show(this, "Mod zip build failed:\r\n" + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                lblWarn.Text = "Backup saved   |   Stage: " + dest;
+                MessageBox.Show(this, "Mod zip build failed:" + "\r\n" + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
 
             UpdateBreadcrumb();
@@ -1262,7 +1632,7 @@ namespace Rage2Toolkit
                 Version = "1.0.0",
                 Author = _sessionModAuthor,
                 Game = "RAGE2",
-                CreatedWith = "RAGE2Toolkit v2.1.0",
+                CreatedWith = "RAGE2Toolkit v2.1.1",
                 CreatedAt = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"),
                 Description = "World settings adjustments built with the World Settings Editor."
             };
@@ -1279,10 +1649,7 @@ namespace Rage2Toolkit
         {
             bool hasFile = !string.IsNullOrEmpty(rtpcPath);
             if (!hasFile) return 1;
-            bool hasChanges = false;
-            foreach (DataGridViewRow r in grid.Rows)
-                if (Convert.ToString(r.Cells[2].Value) != Convert.ToString(r.Cells[3].Value)) { hasChanges = true; break; }
-            if (hasChanges) return 3;
+            if (PendingCount() > 0) return 3;
             if (!string.IsNullOrEmpty(currentHash))
             {
                 string stg = Path.Combine(STAGE, currentHash + ".rtpc");
@@ -1433,6 +1800,92 @@ namespace Rage2Toolkit
         // =========================================================
         // Backup Manager
         // =========================================================
+        // ============================================================
+        // PENDING CHANGES VIEWER
+        // ============================================================
+        void ShowPendingChanges()
+        {
+            int total = PendingCount();
+            if (total == 0)
+            {
+                MessageBox.Show(this,
+                    "No pending changes.\r\n\r\nEdit a value in the 'New value' column and it will appear here.",
+                    "Pending changes", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            using (var pf = new PendingChangesForm(_pending, currentHash))
+            {
+                pf.ShowDialog(this);
+                if (pf.NavigateTo.HasValue)
+                {
+                    var target = pf.NavigateTo.Value;
+                    NavigateToChange(target.fileHash, target.valueOffset);
+                }
+                if (pf.ClearedAll)
+                {
+                    _pending.Clear();
+                    lblStatus.Text = FormatPendingStatus();
+                    RefreshGrid();
+                }
+            }
+        }
+
+        // Navega al nodo que contiene una prop con el ValueOffset indicado y refresca el grid.
+        void NavigateToChange(string fileHash, int valueOffset)
+        {
+            if (string.IsNullOrEmpty(fileHash)) return;
+
+            // Si es otro fichero, primero cambiar el combo.
+            if (!string.Equals(fileHash, currentHash, StringComparison.OrdinalIgnoreCase))
+            {
+                for (int i = 0; i < cboFile.Items.Count; i++)
+                {
+                    var s = cboFile.Items[i] as string;
+                    if (s != null && s.IndexOf(fileHash, StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        cboFile.SelectedIndex = i;
+                        break;
+                    }
+                }
+                if (!string.Equals(fileHash, currentHash, StringComparison.OrdinalIgnoreCase))
+                    return; // no se pudo cambiar de fichero
+            }
+
+            // Buscar el nodo cuyo props contengan ese ValueOffset.
+            TreeNode found = null;
+            foreach (TreeNode root in tree.Nodes)
+            {
+                found = FindNodeByValueOffset(root, valueOffset);
+                if (found != null) break;
+            }
+            if (found != null)
+            {
+                tree.SelectedNode = found;
+                found.EnsureVisible();
+                tree.Focus();
+            }
+        }
+
+        TreeNode FindNodeByValueOffset(TreeNode node, int valueOffset)
+        {
+            if (node == null) return null;
+            var n = node.Tag as RTPCNode;
+            if (n != null && n.Props != null)
+            {
+                foreach (var p in n.Props)
+                {
+                    if (p.ValueOffset == valueOffset) return node;
+                }
+            }
+            foreach (TreeNode child in node.Nodes)
+            {
+                var r = FindNodeByValueOffset(child, valueOffset);
+                if (r != null) return r;
+            }
+            return null;
+        }
+
         void ShowBackupManager()
         {
             if (string.IsNullOrEmpty(rtpcPath))
@@ -1443,7 +1896,10 @@ namespace Rage2Toolkit
             using (var bm = new BackupManagerForm(BKUP, currentHash, rtpcPath))
             {
                 bm.ShowDialog(this);
-                if (bm.Restored) LoadFile();
+                if (bm.Restored)
+                {
+                    LoadFile(true);  // limpiar pending del hash restaurado
+                }
             }
         }
 
@@ -1523,48 +1979,62 @@ namespace Rage2Toolkit
             sb.AppendLine("\"Amount in World\" for a category is the main way to");
             sb.AppendLine("make the world feel alive (or empty).");
             sb.AppendLine();
+            sb.AppendLine("You can edit as many files and as many nodes as you want");
+            sb.AppendLine("in a single session. Every change is tracked in memory");
+            sb.AppendLine("and shown with a magenta tint. Nothing is written to disk");
+            sb.AppendLine("until you click SAVE.");
+            sb.AppendLine();
             sb.AppendLine();
             sb.AppendLine("===========================================================");
             sb.AppendLine("  WORKFLOW");
             sb.AppendLine("===========================================================");
             sb.AppendLine();
-            sb.AppendLine("  1. Extract RTPC files from the game first");
-            sb.AppendLine("     (via the toolkit extractor). They land in:");
-            sb.AppendLine("     D:\\RAGE2MODDING\\_outputs\\settings_extract\\");
+            sb.AppendLine("  1. Pick a file from the dropdown at the top.");
+            sb.AppendLine("     The files are already extracted and ready to edit.");
             sb.AppendLine();
-            sb.AppendLine("  2. Open this editor.");
-            sb.AppendLine();
-            sb.AppendLine("  3. Pick a file from the dropdown at the top.");
-            sb.AppendLine();
-            sb.AppendLine("  4. Browse the tree on the left.");
+            sb.AppendLine("  2. Browse the tree on the left.");
             sb.AppendLine("     Each [N] next to a node = number of editable");
             sb.AppendLine("     properties inside.");
             sb.AppendLine();
-            sb.AppendLine("  5. Click any property and edit the \"New value\" column.");
-            sb.AppendLine("     The row turns yellow to mark it as modified.");
+            sb.AppendLine("  3. Click any property and edit the \"New value\" column.");
+            sb.AppendLine("     The row turns magenta to mark it as modified.");
+            sb.AppendLine("     Navigate freely between nodes and files: your");
+            sb.AppendLine("     changes stay in memory until SAVE.");
             sb.AppendLine();
-            sb.AppendLine("  6. Click SAVE. Three things happen:");
-            sb.AppendLine("       - A backup is written");
-            sb.AppendLine("       - The change is logged to _changes_log.json");
-            sb.AppendLine("       - The modified .rtpc is copied to _stage_mods\\");
+            sb.AppendLine("  4. Watch the status bar at the bottom: it shows the");
+            sb.AppendLine("     total number of unsaved changes across all files.");
+            sb.AppendLine();
+            sb.AppendLine("  5. Click SAVE when you are done.");
+            sb.AppendLine("     A confirmation dialog lists every file that will be");
+            sb.AppendLine("     modified. On confirm:");
+            sb.AppendLine("       - A backup is written for each affected .rtpc");
+            sb.AppendLine("       - Each .rtpc is modified in-place");
+            sb.AppendLine("       - All of them are staged");
+            sb.AppendLine("       - A single mod .zip is built with every affected file");
+            sb.AppendLine("     The .zip is ready to install with the Mod Manager.");
             sb.AppendLine();
             sb.AppendLine();
             sb.AppendLine("===========================================================");
             sb.AppendLine("  WHERE THINGS GO");
             sb.AppendLine("===========================================================");
             sb.AppendLine();
-            sb.AppendLine("D:\\RAGE2MODDING\\_outputs\\settings_editor\\");
-            sb.AppendLine();
-            sb.AppendLine("  _stage_mods\\<hash>.rtpc");
-            sb.AppendLine("      The modified file. Drag it into the toolkit's repacker.");
+            sb.AppendLine("D:\\RAGE2MODDING\\_outputs\\world_editor\\");
             sb.AppendLine();
             sb.AppendLine("  _backups\\<hash>\\<timestamp>.rtpc");
             sb.AppendLine("      Every SAVE creates a NEW backup. Nothing is overwritten.");
             sb.AppendLine("      Manage them with the BACKUPS button in the footer:");
             sb.AppendLine("      restore an older version, delete unused ones, open folder.");
             sb.AppendLine();
+            sb.AppendLine("  _stage_mods\\<hash>.rtpc");
+            sb.AppendLine("      Internal staging area. Cleared automatically when the");
+            sb.AppendLine("      editor opens, so each session starts fresh. Populated");
+            sb.AppendLine("      when you click SAVE.");
+            sb.AppendLine();
             sb.AppendLine("  _changes_log.json");
             sb.AppendLine("      Full history of every change.");
+            sb.AppendLine();
+            sb.AppendLine("The final .zip lands in:");
+            sb.AppendLine("  <toolkit>\\RAGE2Toolkit_Output\\world_editor\\<slug>.zip");
             sb.AppendLine();
             sb.AppendLine();
             sb.AppendLine("===========================================================");
@@ -1588,8 +2058,8 @@ namespace Rage2Toolkit
             sb.AppendLine();
             sb.AppendLine("  OK  = Confirmed. Verified meaning. Safe to edit.");
             sb.AppendLine("  ~   = Deduced. High confidence, but not 100% verified.");
-            sb.AppendLine("  ≈   = Probable. High-confidence structural match. Meaning likely correct.");
-            sb.AppendLine("  ?   = Experimental. Unknown or inferred meaning. Use with care.");
+            sb.AppendLine("  \u2248   = Probable. High-confidence structural match.");
+            sb.AppendLine("  ?   = Experimental. Unknown or inferred meaning.");
             sb.AppendLine("  i   = Info. Read-only, structural. Do not edit.");
             sb.AppendLine();
             sb.AppendLine("Parameters are sorted top-to-bottom by how well we");
@@ -1607,19 +2077,131 @@ namespace Rage2Toolkit
             sb.AppendLine("  - Never edit \"?\" parameters first - start with OK.");
             sb.AppendLine("  - Never set \"Amount in World\" to extreme values");
             sb.AppendLine("    (stick to the range 0.1 .. 20.0).");
+            sb.AppendLine("  - The REVERT button discards ALL unsaved changes across");
+            sb.AppendLine("    every file in the session (after confirmation).");
             sb.AppendLine("  - Backups are your safety net. Use them.");
-            helpText.Text = sb.ToString();
+helpText.Text = sb.ToString();
             helpText.SelectionStart = 0;
             helpText.SelectionLength = 0;
 
             helpForm.ActiveControl = btnClose;
             helpForm.ShowDialog(this);
         }
+        private bool _tabsWrapped = false;
+
+        private void WrapIntoTabs_Loaded(object sender, EventArgs e)
+        {
+            if (_tabsWrapped) return;
+            if (this.Controls.Count == 0) return;
+            if (this.Controls[0] is TabControl) { _tabsWrapped = true; return; }
+
+            _tabsWrapped = true;
+
+            var tabs = new TabControl { Dock = DockStyle.Fill, Font = new Font("Segoe UI", 9f) };
+            var tab1 = new TabPage("RTPC Files") { BackColor = this.BackColor, ForeColor = this.ForeColor, UseVisualStyleBackColor = false };
+            var tab2 = new TabPage("Game Settings (ini)") { BackColor = this.BackColor, ForeColor = this.ForeColor, UseVisualStyleBackColor = false };
+            tabs.TabPages.Add(tab1);
+
+            this.Controls.Add(tabs);
+            tabs.BringToFront();
+
+            var existing = new Control[this.Controls.Count];
+            this.Controls.CopyTo(existing, 0);
+            foreach (var c in existing)
+            {
+                if (c == tabs) continue;
+                c.Parent = tab1;
+            }
+            tab1.PerformLayout();
+            tab1.ResumeLayout(true);
+
+            try
+            {
+                var iniForm = new SettingsIniEditorForm
+                {
+                    TopLevel = false,
+                    FormBorderStyle = FormBorderStyle.None,
+                    Dock = DockStyle.Fill
+                };
+                tab2.Controls.Add(iniForm);
+                iniForm.Show();
+            }
+            catch (Exception exIni)
+            {
+                try
+                {
+                    string logPath = Path.Combine(Path.GetTempPath(), "settingsini_load_error.txt");
+                    File.WriteAllText(logPath, DateTime.Now.ToString("s") + "\n" + exIni.ToString());
+                }
+                catch { }
+
+                var lbl = new Label
+                {
+                    Text = "Failed to load settings.ini editor:\n\n" +
+                           exIni.GetType().Name + ": " + exIni.Message +
+                           "\n\nLog: %TEMP%\\settingsini_load_error.txt",
+                    ForeColor = Color.Salmon,
+                    Dock = DockStyle.Fill,
+                    TextAlign = ContentAlignment.MiddleCenter,
+                    Font = new Font("Segoe UI", 10f)
+                };
+                tab2.Controls.Add(lbl);
+            }
+
+            // Wire "Enable experimental settings" checkbox to toggle tab2 visibility
+            CheckBox expCb = FindCheckBoxByText(tab1, "experimental");
+            if (expCb != null)
+            {
+                if (expCb.Checked) tabs.TabPages.Add(tab2);
+                expCb.CheckedChanged += (s2, e2) =>
+                {
+                    if (expCb.Checked)
+                    {
+                        if (!tabs.TabPages.Contains(tab2)) tabs.TabPages.Add(tab2);
+                    }
+                    else
+                    {
+                        tabs.TabPages.Remove(tab2);
+                    }
+                };
+            }
+        }
+
+        private static CheckBox FindCheckBoxByText(Control parent, string textContains)
+        {
+            foreach (Control c in parent.Controls)
+            {
+                if (c is CheckBox cb && cb.Text != null &&
+                    cb.Text.IndexOf(textContains, StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    return cb;
+                }
+                var nested = FindCheckBoxByText(c, textContains);
+                if (nested != null) return nested;
+            }
+            return null;
+        }
     }
 
     // =============================================================
     // BACKUP MANAGER
     // =============================================================
+    // ============================================================
+    // PendingChange (top-level - compartido entre forms)
+    // ============================================================
+    public class PendingChange
+    {
+        public string FileHash;
+        public int    ValueOffset;
+        public byte   Type;          // 1=uint, 2=float
+        public double Value;
+        public string NameTech;
+        public string NameHuman;
+        public string OldDisplay;
+        public string NewDisplay;
+        public bool   IsBitmask;
+    }
+
     public class BackupManagerForm : Form
     {
         readonly string hashDir;
@@ -1880,4 +2462,177 @@ namespace Rage2Toolkit
             catch (Exception ex) { MessageBox.Show(this, "Cannot open folder:\r\n" + ex.Message, "Open", MessageBoxButtons.OK, MessageBoxIcon.Error); }
         }
     }
+
+    // ============================================================
+    // PENDING CHANGES VIEWER
+    // ============================================================
+    public class PendingChangesForm : Form
+    {
+        public struct NavTarget
+        {
+            public string fileHash;
+            public int valueOffset;
+        }
+
+        public NavTarget? NavigateTo { get; private set; }
+        public bool ClearedAll { get; private set; }
+
+        static readonly Color BG     = Color.FromArgb(16, 16, 20);
+        static readonly Color PANEL  = Color.FromArgb(24, 24, 30);
+        static readonly Color TEXT   = Color.FromArgb(235, 235, 240);
+        static readonly Color MUTED  = Color.FromArgb(150, 150, 160);
+        static readonly Color ACCENT = Color.FromArgb(210, 70, 190);
+        static readonly Color OK     = Color.FromArgb(80, 180, 100);
+        static readonly Color WARN   = Color.FromArgb(255, 180, 40);
+
+        readonly Dictionary<string, Dictionary<int, PendingChange>> _pending;
+        readonly string _currentHash;
+        ListView _lv;
+
+        public PendingChangesForm(Dictionary<string, Dictionary<int, PendingChange>> pending, string currentHash)
+        {
+            _pending = pending;
+            _currentHash = currentHash;
+
+            Text = "Pending changes";
+            Size = new Size(960, 560);
+            StartPosition = FormStartPosition.CenterParent;
+            BackColor = BG;
+            ForeColor = TEXT;
+            Font = new Font("Segoe UI", 9);
+
+            var header = new Panel { Dock = DockStyle.Top, Height = 56, BackColor = PANEL };
+            Controls.Add(header);
+            var title = new Label
+            {
+                Text = "PENDING CHANGES",
+                Location = new Point(20, 14),
+                Size = new Size(400, 26),
+                Font = new Font("Segoe UI", 13, FontStyle.Bold),
+                ForeColor = ACCENT
+            };
+            header.Controls.Add(title);
+            var subtitle = new Label
+            {
+                Text = "Double-click a row to jump to that setting in the editor. All changes are saved together when you click SAVE.",
+                Location = new Point(20, 34),
+                Size = new Size(900, 18),
+                ForeColor = MUTED,
+                Font = new Font("Segoe UI", 8.5f)
+            };
+            header.Controls.Add(subtitle);
+
+            _lv = new ListView
+            {
+                Dock = DockStyle.Fill,
+                View = View.Details,
+                FullRowSelect = true,
+                GridLines = false,
+                BackColor = PANEL,
+                ForeColor = TEXT,
+                BorderStyle = BorderStyle.None,
+                Font = new Font("Consolas", 9),
+                HeaderStyle = ColumnHeaderStyle.Nonclickable
+            };
+            _lv.Columns.Add("File", 200);
+            _lv.Columns.Add("Setting", 320);
+            _lv.Columns.Add("Current", 140);
+            _lv.Columns.Add("New value", 140);
+            _lv.Columns.Add("Offset", 100);
+            _lv.DoubleClick += (s, e) => FireNavigate();
+            Controls.Add(_lv);
+            _lv.BringToFront();
+
+            var footer = new Panel { Dock = DockStyle.Bottom, Height = 60, BackColor = PANEL };
+            Controls.Add(footer);
+            footer.BringToFront();
+
+            var bGo = new Button
+            {
+                Text = "GO TO SELECTED",
+                Size = new Size(170, 36),
+                Location = new Point(20, 12),
+                BackColor = ACCENT,
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9, FontStyle.Bold)
+            };
+            bGo.FlatAppearance.BorderSize = 0;
+            bGo.Click += (s, e) => FireNavigate();
+            footer.Controls.Add(bGo);
+
+            var bClear = new Button
+            {
+                Text = "DISCARD ALL CHANGES",
+                Size = new Size(210, 36),
+                Location = new Point(200, 12),
+                BackColor = PANEL,
+                ForeColor = WARN,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9, FontStyle.Bold)
+            };
+            bClear.FlatAppearance.BorderColor = WARN;
+            bClear.FlatAppearance.BorderSize = 1;
+            bClear.Click += (s, e) =>
+            {
+                var r = MessageBox.Show(this,
+                    "Discard ALL pending changes across ALL files?\r\n\r\nThis cannot be undone.",
+                    "Discard all", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+                if (r == DialogResult.Yes)
+                {
+                    ClearedAll = true;
+                    Close();
+                }
+            };
+            footer.Controls.Add(bClear);
+
+            var bClose = new Button
+            {
+                Text = "CLOSE",
+                Size = new Size(120, 36),
+                Location = new Point(810, 12),
+                BackColor = PANEL,
+                ForeColor = TEXT,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9, FontStyle.Bold)
+            };
+            bClose.FlatAppearance.BorderColor = Color.FromArgb(60, 60, 72);
+            bClose.FlatAppearance.BorderSize = 1;
+            bClose.Click += (s, e) => Close();
+            footer.Controls.Add(bClose);
+
+            PopulateList();
+        }
+
+        void PopulateList()
+        {
+            _lv.Items.Clear();
+            foreach (var fkv in _pending)
+            {
+                bool isCurrent = string.Equals(fkv.Key, _currentHash, StringComparison.OrdinalIgnoreCase);
+                foreach (var okv in fkv.Value)
+                {
+                    var pc = okv.Value;
+                    var item = new ListViewItem(fkv.Key + (isCurrent ? "  (current)" : ""));
+                    item.SubItems.Add(pc.NameHuman ?? pc.NameTech ?? "?");
+                    item.SubItems.Add(pc.OldDisplay ?? "");
+                    item.SubItems.Add(pc.NewDisplay ?? "");
+                    item.SubItems.Add("0x" + pc.ValueOffset.ToString("X"));
+                    item.Tag = new NavTarget { fileHash = fkv.Key, valueOffset = pc.ValueOffset };
+                    if (!isCurrent) item.ForeColor = MUTED;
+                    _lv.Items.Add(item);
+                }
+            }
+            if (_lv.Items.Count > 0) _lv.Items[0].Selected = true;
+        }
+
+        void FireNavigate()
+        {
+            if (_lv.SelectedItems.Count == 0) return;
+            var t = (NavTarget)_lv.SelectedItems[0].Tag;
+            NavigateTo = t;
+            Close();
+        }
+    }
+
 }

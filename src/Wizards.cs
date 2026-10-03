@@ -553,8 +553,11 @@ namespace Rage2Toolkit
 
             // LinkLabel del output - clickable, abreviado
             linkOutput = new LinkLabel();
-            linkOutput.AutoSize = true;
+            linkOutput.AutoSize = false;
             linkOutput.Location = new Point(40, 128);
+            linkOutput.Size = new Size(this.ClientSize.Width - 40 - 480, 22);
+            linkOutput.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            linkOutput.AutoEllipsis = true;
             linkOutput.Font = new Font("Segoe UI", 9);
             linkOutput.LinkColor = C_OK;
             linkOutput.ActiveLinkColor = Color.White;
@@ -563,7 +566,9 @@ namespace Rage2Toolkit
             linkOutput.LinkClicked += (s, e) =>
             {
                 if (outputPath != null && Directory.Exists(outputPath))
-                    Process.Start("explorer.exe", outputPath);
+                {
+                    using (var p = Process.Start("explorer.exe", outputPath)) { }
+                }
                 else
                     BrowseOutputFolder();
             };
@@ -576,8 +581,8 @@ namespace Rage2Toolkit
             btnGame.BorderColor = Color.FromArgb(90, 90, 110);
             btnGame.BorderThickness = 1;
             btnGame.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            btnGame.Location = new Point(this.ClientSize.Width - 420, 22);
-            btnGame.Size = new Size(220, 42);
+            btnGame.Location = new Point(this.ClientSize.Width - 400, 55);
+            btnGame.Size = new Size(180, 42);
             btnGame.FlatStyle = FlatStyle.Flat;
             btnGame.FlatAppearance.BorderSize = 0;
             btnGame.BackColor = C_BTN;
@@ -594,8 +599,8 @@ namespace Rage2Toolkit
             btnOutput.BorderColor = Color.FromArgb(90, 90, 110);
             btnOutput.BorderThickness = 1;
             btnOutput.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            btnOutput.Location = new Point(this.ClientSize.Width - 420, 78);
-            btnOutput.Size = new Size(220, 42);
+            btnOutput.Location = new Point(this.ClientSize.Width - 400, 113);
+            btnOutput.Size = new Size(180, 42);
             btnOutput.FlatStyle = FlatStyle.Flat;
             btnOutput.FlatAppearance.BorderSize = 0;
             btnOutput.BackColor = C_BTN;
@@ -606,13 +611,13 @@ namespace Rage2Toolkit
             bottom.Controls.Add(btnOutput);
 
             RoundedButton btnOpenOut = new RoundedButton();
-            btnOpenOut.Text = "Output Folder";
+            btnOpenOut.Text = "Open output folder";
             btnOpenOut.CornerRadius = 10;
             btnOpenOut.BorderColor = Color.FromArgb(90, 90, 110);
             btnOpenOut.BorderThickness = 1;
             btnOpenOut.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            btnOpenOut.Location = new Point(this.ClientSize.Width - 180, 22);
-            btnOpenOut.Size = new Size(140, 42);
+            btnOpenOut.Location = new Point(this.ClientSize.Width - 200, 113);
+            btnOpenOut.Size = new Size(180, 42);
             btnOpenOut.FlatStyle = FlatStyle.Flat;
             btnOpenOut.FlatAppearance.BorderSize = 0;
             btnOpenOut.BackColor = C_BTN;
@@ -622,7 +627,9 @@ namespace Rage2Toolkit
             btnOpenOut.Click += (s, e) =>
             {
                 if (outputPath != null && Directory.Exists(outputPath))
-                    Process.Start("explorer.exe", outputPath);
+                {
+                    using (var p = Process.Start("explorer.exe", outputPath)) { }
+                }
                 else
                     BrowseOutputFolder();
             };
@@ -634,8 +641,8 @@ namespace Rage2Toolkit
             btnUpdate.BorderColor = Color.FromArgb(90, 90, 110);
             btnUpdate.BorderThickness = 1;
             btnUpdate.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            btnUpdate.Location = new Point(this.ClientSize.Width - 180, 78);
-            btnUpdate.Size = new Size(140, 42);
+            btnUpdate.Location = new Point(this.ClientSize.Width - 200, 55);
+            btnUpdate.Size = new Size(180, 42);
             btnUpdate.FlatStyle = FlatStyle.Flat;
             btnUpdate.FlatAppearance.BorderSize = 0;
             btnUpdate.BackColor = C_BTN;
@@ -868,7 +875,7 @@ namespace Rage2Toolkit
                         if (drive.AvailableFreeSpace < 25L * 1073741824L) low = true;
                     }
                     catch { }
-                    string abbr = Abbreviate.ShortPath(outputPath, 45);
+                    string abbr = Abbreviate.ShortPath(outputPath, 35);
                     string check = low ? "\u26a0" : "\u2713";
                     string prefix = check + "   Output Folder: ";
                     string suffix = free + (low ? "  -  less than 25 GB" : "");
@@ -1240,6 +1247,7 @@ namespace Rage2Toolkit
         bool completed = false;
         int extractedCount = 0, ddsCount = 0, audioCount = 0, videoCount = 0, otherCount = 0;
         volatile bool _cancelRequested = false;
+        System.Threading.CancellationTokenSource _cts = null;
 
         public WizardExtract(string gamePath, string outputPath)
             : base("Wizard: Extract assets", 4)
@@ -1249,6 +1257,46 @@ namespace Rage2Toolkit
             BuildStep1();
             BuildStep2();
             BuildStep3();
+            BuildStep4();
+
+            // Gear: conversion preferences (solo en Extract)
+            var gearBtnWE = new RoundedButton();
+            gearBtnWE.Text = "\u2699";
+            gearBtnWE.Font = new Font("Segoe UI", 15, FontStyle.Bold);
+            gearBtnWE.ForeColor = C_INFO;
+            gearBtnWE.BackColor = C_HEAD;
+            gearBtnWE.BorderColor = C_INFO;
+            gearBtnWE.BorderThickness = 2;
+            gearBtnWE.CornerRadius = 20;
+            gearBtnWE.HoverColor = Color.FromArgb(32, 60, 60);
+            gearBtnWE.Size = new Size(40, 40);
+            gearBtnWE.TextAlign = ContentAlignment.MiddleCenter;
+            gearBtnWE.Cursor = Cursors.Hand;
+            gearBtnWE.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            gearBtnWE.Location = new Point(this.ClientSize.Width - 60, 20);
+            gearBtnWE.Click += (s, e) => {
+                try {
+                    string _prefsPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data", "conversion_prefs.json");
+                    string _res = "1024", _fmt = "png", _aud = "keep";
+                    if (File.Exists(_prefsPath)) {
+                        using (var _d = System.Text.Json.JsonDocument.Parse(File.ReadAllText(_prefsPath))) {
+                            System.Text.Json.JsonElement _v;
+                            if (_d.RootElement.TryGetProperty("resolution", out _v)) _res = _v.GetString() ?? "1024";
+                            if (_d.RootElement.TryGetProperty("format", out _v)) _fmt = _v.GetString() ?? "png";
+                            if (_d.RootElement.TryGetProperty("audio", out _v)) _aud = _v.GetString() ?? "keep";
+                        }
+                    }
+                    using (var dlg = new ConversionPrefsForm(_res, _fmt, _aud)) {
+                        dlg.ShowDialog(this);
+                        if (dlg.Saved) {
+                            string _json = "{\"resolution\":\"" + dlg.Resolution + "\",\"format\":\"" + dlg.Format + "\",\"audio\":\"" + dlg.Audio + "\"}";
+                            File.WriteAllText(_prefsPath, _json);
+                        }
+                    }
+                } catch { }
+            };
+            this.Controls.Add(gearBtnWE);
+            gearBtnWE.BringToFront();
             if (btnNext != null)
             {
                 btnNext.Location = new Point(this.ClientSize.Width - 200, 18);
@@ -1267,6 +1315,7 @@ namespace Rage2Toolkit
             if (currentStep == 2)
             {
                 _cancelRequested = true;
+                try { if (_cts != null) _cts.Cancel(); } catch { }
                 if (btnCancel != null)
                 {
                     btnCancel.Text = "Cancelling...";
@@ -1282,12 +1331,11 @@ namespace Rage2Toolkit
             base.OnStepShown(n);
             if (btnNext != null)
             {
-                btnNext.Visible = (n != 2);
+                btnNext.Visible = (n != 0 && n != 2);
                 btnNext.Enabled = true;
                 btnNext.Location = new Point(this.ClientSize.Width - 200, 18);
                 btnNext.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-                if (n == 0) btnNext.Text = "Extract all";
-                else if (n == 1) btnNext.Text = "Start extraction";
+                if (n == 1) btnNext.Text = "Start extraction";
                 else if (n == 2) btnNext.Text = "Wait...";
                 else btnNext.Text = "Finish";
             }
@@ -1316,7 +1364,6 @@ namespace Rage2Toolkit
         {
             var p = MakeStepPanel();
             p.Controls.Add(MakeTitle("What do you want to extract?", 0, 10));
-            p.Controls.Add(MakeSub("Pick what interests you.", 0, 50, 900));
 
             // Info tooltip con acento cyan
             var info = new InfoTooltipPanel();
@@ -1349,7 +1396,7 @@ namespace Rage2Toolkit
             btnAll.ForeColor = Color.White;
             btnAll.Font = new Font("Segoe UI", 12, FontStyle.Bold);
             btnAll.Cursor = Cursors.Hand;
-            btnAll.Size = new Size(340, 70);
+            btnAll.Size = new Size(640, 70);
             btnAll.Click += (s, e) => { SetToggleAll(true); GotoStep(1); };
             p.Controls.Add(btnAll);
 
@@ -1363,7 +1410,7 @@ namespace Rage2Toolkit
                 "Open the asset browser and pick exactly what you need.\n\nSearch by keyword, extension or hash. The recommended way to extract assets for a specific mod.");
 
             wireHover(btnAll, "\u25B6  EXTRACT EVERYTHING",
-                "Pull out all 39,519 assets from the 46 .arc files (~60 GB).\n\nAll textures, audio, video, scripts and UI. Slowest option, but the only one that gives you the full corpus.");
+                "Extract every asset from the game in one go: textures, audio, video, scripts and UI.\n\nBest if you don't know yet which assets you need, or want a complete reference dump of the game.\n\nRoughly 60 GB. Takes several minutes.");
 
             Action layout = () =>
             {
@@ -1510,9 +1557,10 @@ namespace Rage2Toolkit
             logBox.Font = new Font("Consolas", 9);
             logBox.ReadOnly = true;
             logBox.ShortcutsEnabled = true;
+            logBox.HideSelection = false;
             logBox.WordWrap = false;
             logBox.BorderStyle = BorderStyle.FixedSingle;
-            logBox.ScrollBars = RichTextBoxScrollBars.Vertical;
+            logBox.ScrollBars = RichTextBoxScrollBars.ForcedBoth;
             p.Controls.Add(logBox);
         }
 
@@ -1536,7 +1584,9 @@ namespace Rage2Toolkit
             btnOpen.Click += (s, e) =>
             {
                 if (outputPath != null && Directory.Exists(outputPath))
-                    Process.Start("explorer.exe", outputPath);
+                {
+                    using (var p = Process.Start("explorer.exe", outputPath)) { }
+                }
             };
             p.Controls.Add(btnOpen);
         }
@@ -1586,6 +1636,9 @@ namespace Rage2Toolkit
 
         void StartExtract()
         {
+            try { if (_cts != null) { _cts.Dispose(); _cts = null; } } catch { }
+            _cancelRequested = false;
+            _cts = new System.Threading.CancellationTokenSource();
             Task.Run(() =>
             {
                 try
@@ -1606,6 +1659,13 @@ namespace Rage2Toolkit
                         var _fl = ExtractorOpt.LoadFilelistCache(_dd);
                         if (_fl.Count > 0) {
                             ExtractorOpt.NameResolver = (h) => { string p; return _fl.TryGetValue(h, out p) ? ExtractorOpt.SanitizeBasename(p) : null; };
+                            try {
+                                var _subdirs = BuildHashSubdirMapFromTree();
+                                if (_subdirs.Count > 0) {
+                                    ExtractorOpt.PathResolver = (h) => { string v; return _subdirs.TryGetValue(h, out v) ? v : null; };
+                                    Log("[ORG] PathResolver active (" + _subdirs.Count + " entries)");
+                                }
+                            } catch (Exception exOrg) { Log("[ORG] " + exOrg.Message); }
                             Log("[TECH-15] NameResolver active (" + _fl.Count + " entries)");
                         }
                     } catch (Exception ex) { Log("[TECH-15] " + ex.Message); }
@@ -1628,9 +1688,11 @@ namespace Rage2Toolkit
                                 Log(string.Format("       {0,-14}  ok={1,6}  fail={2,4}   ({3}% total)", n, ok, f, pct));
                             }));
                         },
-                        true);
+                        true, _cts.Token);
                     swTotal.Stop();
                     ExtractorOpt.NameResolver = null;
+                      ExtractorOpt.PathResolver = null;
+                      try { if (_cts != null) { _cts.Dispose(); _cts = null; } } catch { }
                     try { ExtractorOpt.SortOutputDirectory(outputPath); } catch { }
 
                     long ms = swTotal.ElapsedMilliseconds;
@@ -1647,7 +1709,15 @@ namespace Rage2Toolkit
 
                     Log("");
                     Log("Classifying and converting textures...");
-                    ClassifyAndConvert();
+                    try
+                    {
+                        ConvertAvtxInPlace();
+                    }
+                    catch (Exception exCl)
+                    {
+                        try { File.WriteAllText(System.IO.Path.Combine(@"D:\RAGE2MODDING\_outputs", "_diag_classify_err.txt"), DateTime.Now.ToString("o") + "\r\n" + exCl.ToString()); } catch { }
+                        throw;
+                    }
 
                     this.Invoke(new Action(() =>
                     {
@@ -1660,10 +1730,12 @@ namespace Rage2Toolkit
                         Log("\u2713 Extraction complete.");
                         completed = true;
                         ShowStats();
+                        GotoStep(3);
                     }));
                 }
                 catch (Exception ex)
                 {
+                    try { File.WriteAllText(System.IO.Path.Combine(@"D:\RAGE2MODDING\_outputs", "_diag_startextract_err.txt"), DateTime.Now.ToString("o") + "\r\n" + ex.ToString()); } catch { }
                     this.Invoke(new Action(() =>
                     {
                         if (_cancelRequested)
@@ -1683,9 +1755,138 @@ namespace Rage2Toolkit
                 }
             });
         }
-        void ClassifyAndConvert()
+                Dictionary<ulong, string> BuildHashSubdirMapFromTree()
         {
-            if (_cancelRequested) return;
+            var map = new Dictionary<ulong, string>();
+            try {
+                string jsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data", "type_map_v3.json");
+                if (!File.Exists(jsonPath)) return map;
+                string json = File.ReadAllText(jsonPath);
+                using (var doc = System.Text.Json.JsonDocument.Parse(json)) {
+                    var root = doc.RootElement;
+                    int schemaV3 = 0;
+                    System.Text.Json.JsonElement se;
+                    if (root.TryGetProperty("schema", out se)) schemaV3 = se.GetInt32();
+                    if (schemaV3 != 3) return map;
+                    System.Text.Json.JsonElement tree;
+                    if (!root.TryGetProperty("tree", out tree)) return map;
+                    foreach (var catProp in tree.EnumerateObject()) {
+                        string catName = SanitizeFolderP2(catProp.Name);
+                        WalkTree(catProp.Value, catName, map);
+                    }
+                }
+            } catch { }
+            return map;
+        }
+
+        void WalkTree(System.Text.Json.JsonElement node, string path, Dictionary<ulong, string> map)
+        {
+            System.Text.Json.JsonElement assets;
+            if (node.TryGetProperty("assets", out assets) && assets.ValueKind == System.Text.Json.JsonValueKind.Array) {
+                foreach (var a in assets.EnumerateArray()) {
+                    System.Text.Json.JsonElement hEl;
+                    if (!a.TryGetProperty("h", out hEl)) continue;
+                    string hStr = hEl.GetString() ?? "";
+                    ulong hv;
+                    if (!ulong.TryParse(hStr, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out hv)) continue;
+                    if (!map.ContainsKey(hv)) map[hv] = path;
+                }
+            }
+            System.Text.Json.JsonElement ch;
+            if (node.TryGetProperty("children", out ch) && ch.ValueKind == System.Text.Json.JsonValueKind.Object) {
+                foreach (var child in ch.EnumerateObject()) {
+                    string childPath = path + "/" + SanitizeFolderP2(child.Name);
+                    WalkTree(child.Value, childPath, map);
+                }
+            }
+        }
+
+        static string SanitizeFolderP2(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return "_";
+            var sb = new System.Text.StringBuilder(s.Length);
+            foreach (var c in s) {
+                if (c == (char)32) sb.Append((char)95);
+                else if (char.IsLetterOrDigit(c) || c == (char)95 || c == (char)45 || c == (char)46) sb.Append(c);
+                else sb.Append((char)95);
+            }
+            return sb.ToString();
+        }
+
+        void ConvertAvtxInPlace()
+        {
+            string ddsc = Path.Combine(Paths.BinDir, "ddscConvert.exe");
+            if (!File.Exists(ddsc)) { Log("  ddscConvert.exe no encontrado en " + Paths.BinDir); return; }
+            var avtxFiles = Directory.GetFiles(outputPath, "*.avtx", SearchOption.AllDirectories)
+                .Where(f => !f.Contains("__tmp_rev") && !f.Contains("__atxtmp")).ToList();
+            int total = avtxFiles.Count;
+            int converted = 0;
+            Log("  [avtx] encontrados: " + total);
+            foreach (var a in avtxFiles) {
+                if (_cancelRequested) throw new OperationCanceledException("cancelled by user");
+                try {
+                    string dir = Path.GetDirectoryName(a);
+                    var psi = new ProcessStartInfo(ddsc, "\"" + a + "\"");
+                    psi.UseShellExecute = false;
+                    psi.CreateNoWindow = true;
+                    psi.WorkingDirectory = dir;
+                    using (var p = Process.Start(psi)) { p.WaitForExit(30000); if (!p.HasExited) { try { p.Kill(); } catch { } } }
+                    string dds = Path.ChangeExtension(a, ".dds");
+                    if (File.Exists(dds)) {
+                        converted++;
+                        try { File.Delete(a); } catch { }
+                        string stem = Path.GetFileNameWithoutExtension(a);
+                        foreach (var stray in Directory.GetFiles(dir, stem + ".atx*")) {
+                            try { File.Delete(stray); } catch { }
+                        }
+                    }
+                } catch { }
+                if (total > 0 && (converted % 500) == 0 && converted > 0) {
+                    int c = converted;
+                    try { this.Invoke(new Action(() => Log("    [avtx] converted: " + c + " / " + total))); } catch { }
+                }
+            }
+            Log("  [avtx] converted: " + converted + " / " + total);
+            ddsCount += converted;
+
+            // ATX1 -> DDS/PNG (misma logica que el single)
+            string _atxTarget = "dds";
+            try {
+                string _pp = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data", "conversion_prefs.json");
+                if (File.Exists(_pp)) {
+                    using (var _d = System.Text.Json.JsonDocument.Parse(File.ReadAllText(_pp))) {
+                        System.Text.Json.JsonElement _v;
+                        if (_d.RootElement.TryGetProperty("format", out _v)) _atxTarget = _v.GetString() ?? "dds";
+                    }
+                }
+            } catch { }
+            string _tkRel = Path.GetDirectoryName(Application.ExecutablePath);
+            var atx1Files = Directory.GetFiles(outputPath, "*.atx1", SearchOption.AllDirectories)
+                .Where(f => !f.Contains("__tmp_rev") && !f.Contains("__atxtmp")).ToList();
+            int atx1Total = atx1Files.Count;
+            int atx1Conv = 0;
+            Log("  [atx1] encontrados: " + atx1Total + " (target=" + _atxTarget + ")");
+            var _po = new System.Threading.Tasks.ParallelOptions { MaxDegreeOfParallelism = 8 };
+            System.Threading.Tasks.Parallel.ForEach(atx1Files, _po, a => {
+                if (_cancelRequested) throw new OperationCanceledException("cancelled by user");
+                try {
+                    if (SingleExtractForm.TryConvertAtx1ToEditable(a, outputPath, _tkRel, _atxTarget)) {
+                        int c = System.Threading.Interlocked.Increment(ref atx1Conv);
+                        try { File.Delete(a); } catch { }
+                        if (c % 500 == 0) {
+                            int cc = c;
+                            try { this.Invoke(new Action(() => Log("    [atx1] converted: " + cc + " / " + atx1Total))); } catch { }
+                        }
+                    }
+                } catch { }
+            });
+            Log("  [atx1] converted: " + atx1Conv + " / " + atx1Total);
+            ddsCount += atx1Conv;
+
+        }
+void ClassifyAndConvert()
+        {
+            if (_cancelRequested) throw new OperationCanceledException("cancelled by user");
             var swTotal = System.Diagnostics.Stopwatch.StartNew();
             string[] sub = { "TEXTURES", "AUDIO", "VIDEO", "SCRIPTS", "UI", "OTHER" };
             string root = Path.Combine(outputPath, "_EDITABLE");
@@ -1732,8 +1933,10 @@ namespace Rage2Toolkit
                         psi.UseShellExecute = false;
                         psi.CreateNoWindow = true;
                         psi.WorkingDirectory = Paths.BinDir;
-                        var p = Process.Start(psi);
-                        p.WaitForExit();
+                        using (var p = Process.Start(psi))
+                        {
+                            p.WaitForExit();
+                        }
                         foreach (var a in batch) {
                             string dds = Path.ChangeExtension(a, ".dds");
                             if (File.Exists(dds)) {
@@ -1742,13 +1945,22 @@ namespace Rage2Toolkit
                             }
                             try { File.Delete(a); } catch { }
                         }
-                    } catch { }
+                    } catch (Exception exBatch) {
+                        try { File.AppendAllText(System.IO.Path.Combine(@"D:\RAGE2MODDING\_outputs", "_diag_avtx_batch_err.txt"), DateTime.Now.ToString("o") + " | " + exBatch.GetType().FullName + " | " + exBatch.Message + "\r\n" + exBatch.StackTrace + "\r\n\r\n"); } catch { }
+                    }
                     int d = System.Threading.Interlocked.Increment(ref doneBatches);
                     if (d % 2 == 0 || d == totalBatches) {
                         int dd = d;
-                        this.Invoke(new Action(() => {
-                            Log("    avtx batches: " + dd + " / " + totalBatches);
-                        }));
+                        try
+                        {
+                            this.Invoke(new Action(() => {
+                                Log("    avtx batches: " + dd + " / " + totalBatches);
+                            }));
+                        }
+                        catch (Exception exInvoke)
+                        {
+                            try { File.AppendAllText(System.IO.Path.Combine(@"D:\RAGE2MODDING\_outputs", "_diag_avtx_invoke_err.txt"), DateTime.Now.ToString("o") + " | " + exInvoke.GetType().FullName + " | " + exInvoke.Message + "\r\n" + exInvoke.StackTrace + "\r\n\r\n"); } catch { }
+                        }
                     }
                 });
                 ddsCount += ddsLocal;
@@ -1776,7 +1988,14 @@ namespace Rage2Toolkit
                 int dm = System.Threading.Interlocked.Increment(ref doneMove);
                 if (dm % 2000 == 0) {
                     int ddm = dm;
-                    this.Invoke(new Action(() => Log("    move: " + ddm + " / " + totalMove)));
+                    try
+                    {
+                        this.Invoke(new Action(() => Log("    move: " + ddm + " / " + totalMove)));
+                    }
+                    catch (Exception exMoveInvoke)
+                    {
+                        try { File.AppendAllText(System.IO.Path.Combine(@"D:\RAGE2MODDING\_outputs", "_diag_move_invoke_err.txt"), DateTime.Now.ToString("o") + " | " + exMoveInvoke.GetType().FullName + " | " + exMoveInvoke.Message + "\r\n" + exMoveInvoke.StackTrace + "\r\n\r\n"); } catch { }
+                    }
                 }
             });
             swMove.Stop();
@@ -1801,23 +2020,59 @@ namespace Rage2Toolkit
             sb.AppendLine("\u2713 " + otherCount.ToString("N0") + "  scripts, UI and other data");
             sb.AppendLine();
             sb.AppendLine("Organized in:");
-            sb.AppendLine("  " + Path.Combine(outputPath, "_EDITABLE") + "\\");
+            sb.AppendLine("  " + outputPath + "\\  (organized by category / entity / resource)");
             sb.AppendLine("    TEXTURES\\   AUDIO\\   VIDEO\\   SCRIPTS\\   UI\\   OTHER\\");
             sb.AppendLine();
             sb.AppendLine("When done editing, go back to the main screen and use MOD & REPACK.");
 
-            var lbl = (Label)stepPanels[3].Controls.Find("lblStats", true)[0];
-            lbl.Text = sb.ToString();
+            string summary = sb.ToString();
+            bool shown = false;
+            if (stepPanels.Count > 3)
+            {
+                try
+                {
+                    var found = stepPanels[3].Controls.Find("lblStats", true);
+                    if (found != null && found.Length > 0 && found[0] is Label lbl)
+                    {
+                        lbl.Text = summary;
+                        shown = true;
+                    }
+                }
+                catch { }
+            }
+            if (!shown)
+            {
+                foreach (var line in summary.Split('\n')) Log(line.TrimEnd('\r'));
+            }
         }
 
         protected bool logSilent = false;
         private readonly object logLock = new object();
         private System.Text.StringBuilder logBuf = new System.Text.StringBuilder();
 
+        const int LOG_MAX_LINES = 5000;
+        const int LOG_TRIM_LINES = 1000;
+        void TrimLogBox()
+        {
+            try
+            {
+                if (logBox == null) return;
+                int n = logBox.Lines.Length;
+                if (n <= LOG_MAX_LINES) return;
+                int firstLineStart = logBox.GetFirstCharIndexFromLine(0);
+                int trimLineStart = logBox.GetFirstCharIndexFromLine(LOG_TRIM_LINES);
+                if (firstLineStart < 0 || trimLineStart <= firstLineStart) return;
+                logBox.Select(firstLineStart, trimLineStart - firstLineStart);
+                logBox.SelectedText = "";
+            }
+            catch { }
+        }
+
         protected void Log(string msg)
         {
             if (logSilent) { lock (logLock) { logBuf.Append(msg).Append(Environment.NewLine); } return; }
             if (logBox.InvokeRequired) { logBox.Invoke(new Action(() => Log(msg))); return; }
+            TrimLogBox();
             logBox.AppendText(msg + Environment.NewLine);
             logBox.SelectionStart = logBox.TextLength;
             logBox.SelectionLength = 0;
@@ -1830,6 +2085,7 @@ namespace Rage2Toolkit
             lock (logLock) { content = logBuf.ToString(); logBuf.Clear(); }
             if (string.IsNullOrEmpty(content)) return;
             if (logBox.InvokeRequired) { logBox.Invoke(new Action(FlushLog)); return; }
+            TrimLogBox();
             logBox.AppendText(content);
             logBox.SelectionStart = logBox.TextLength;
             logBox.SelectionLength = 0;
@@ -2156,7 +2412,7 @@ void LoadFilelist()
             logBox.ReadOnly = true;
             logBox.WordWrap = false;
             logBox.BorderStyle = BorderStyle.FixedSingle;
-            logBox.ScrollBars = RichTextBoxScrollBars.Vertical;
+            logBox.ScrollBars = RichTextBoxScrollBars.ForcedBoth;
             p.Controls.Add(logBox);
         }
         Label lblZipPath;
@@ -2194,7 +2450,9 @@ void LoadFilelist()
                 {
                     string path = lblZipPath.Text;
                     if (!string.IsNullOrEmpty(path) && File.Exists(path))
-                        Process.Start("explorer.exe", "/select,\"" + path + "\"");
+                    {
+                        using (var p = Process.Start("explorer.exe", "/select,\"" + path + "\"")) { }
+                    }
                 }
                 catch { }
             };
@@ -2769,8 +3027,10 @@ void LoadFilelist()
                 psi.UseShellExecute = false;
                 psi.CreateNoWindow = true;
                 psi.WorkingDirectory = Path.GetDirectoryName(exe);
-                var p = Process.Start(psi);
-                p.WaitForExit();
+                using (var p = Process.Start(psi))
+                {
+                    p.WaitForExit();
+                }
             }
             catch { }
         }
@@ -2879,8 +3139,7 @@ void LoadFilelist()
             btnRepacker.Size = new Size(300, 70);
             btnRepacker.Click += (s, e) => { new WizardRepack(gamePath).ShowDialog(this); };
             p.Controls.Add(btnRepacker);
-
-            Action<RoundedButton, string, string> wireHover = (btn, title, desc) =>
+                        Action<RoundedButton, string, string> wireHover = (btn, title, desc) =>
             {
                 btn.MouseEnter += (s, e) => { info.ShowInfo(title, desc); };
                 btn.MouseLeave += (s, e) => { info.HideInfo(); };

@@ -48,7 +48,7 @@ namespace Rage2Toolkit
             if (!File.Exists(p)) p = Path.Combine(dataDir, "data", "filelist.txt");
             if (File.Exists(p)) { foreach (string line in File.ReadAllLines(p)) {
                 if (string.IsNullOrWhiteSpace(line)) continue;
-                var parts = line.Split((char)9);
+                var parts = line.Split(new char[] {(char)9, (char)32}, 2, StringSplitOptions.RemoveEmptyEntries);
                 if (parts.Length < 2) continue;
                 ulong h;
                 if (!ulong.TryParse(parts[0], System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out h)) continue;
@@ -56,6 +56,28 @@ namespace Rage2Toolkit
             } }
             _filelistCache = dict;
             return dict;
+        }
+
+        private static HashSet<ulong> _gameHashesCache = null;
+        public static HashSet<ulong> LoadGameHashes(string gamePath)
+        {
+            if (_gameHashesCache != null) return _gameHashesCache;
+            var set = new HashSet<ulong>();
+            try {
+                var tabList = new List<string>();
+                string initDir = Path.Combine(gamePath, "archives_win64", "initial");
+                string suppDir = Path.Combine(gamePath, "archives_win64", "supplemental");
+                if (Directory.Exists(initDir)) tabList.AddRange(Directory.GetFiles(initDir, "*.tab", SearchOption.AllDirectories));
+                if (Directory.Exists(suppDir)) tabList.AddRange(Directory.GetFiles(suppDir, "*.tab", SearchOption.AllDirectories));
+                tabList.RemoveAll(p => p.Contains("\\languages\\"));
+                foreach (var tabPath in tabList) {
+                    TabFormat.Tab t;
+                    try { t = TabFormat.Tab.Parse(tabPath); } catch { continue; }
+                    foreach (var e in t.Entries) set.Add(e.Hash);
+                }
+            } catch { }
+            _gameHashesCache = set;
+            return set;
         }
 
         public delegate bool OodleDec(byte[] comp, int compOff, int compLen, byte[] dst, int dstOff, int dstLen);
@@ -92,7 +114,7 @@ namespace Rage2Toolkit
             OodleDec oodle,
             Action<int,int,string,int> onTabStart,
             Action<int,int,string,int,int> onTabDone,
-            Action<string> log)
+            Action<string> log, System.Threading.CancellationToken cancelToken = default(System.Threading.CancellationToken))
         {
             var st = new Stats();
             var swTotal = Stopwatch.StartNew();
@@ -168,9 +190,10 @@ namespace Rage2Toolkit
                 }
 
                 try {
-                    Parallel.ForEach(jobs, new ParallelOptions { MaxDegreeOfParallelism = nThreads },
+                    Parallel.ForEach(jobs, new ParallelOptions { MaxDegreeOfParallelism = nThreads, CancellationToken = cancelToken },
                         () => new Ctx(bufSize),
                         (job, state, ctx) => {
+                        cancelToken.ThrowIfCancellationRequested();
                             int ti = job.tabIdx, ei = job.entryIdx;
                             var tab = parsedTabs[ti];
                             var e = tab.Entries[ei];
@@ -470,22 +493,58 @@ if (ext == "unknown") ext = LookupExtFromFilelist(e.Hash, ext);
 
                 long arcLen = new FileInfo(arcPath).Length;
                 using (var mmf = MemoryMappedFile.CreateFromFile(arcPath, FileMode.Open, null, 0, MemoryMappedFileAccess.Read)) {
-                    Parallel.ForEach(entries,
-                        new ParallelOptions { MaxDegreeOfParallelism = nThreads },
-                        () => {
-                            var c = new Ctx(4 * 1024 * 1024);
-                            c.acc = mmf.CreateViewAccessor(0, arcLen, MemoryMappedFileAccess.Read);
-                            c.currentTab = 0;
-                            return c;
-                        },
-                        (e, state, ctx) => {
-                            bool w = ExtractAndWrite(ctx.acc, t, e, ctx, outputDir, oodle);
-                            if (w) System.Threading.Interlocked.Increment(ref done);
-                            int n = System.Threading.Interlocked.Increment(ref attempted);
-                            if (progress != null) progress(n, total, tabPath);
-                            return ctx;
-                        },
-                        (ctx) => { try { ctx.Dispose(); } catch { } });
+                    string stuckLog = Path.Combine(outputDir, "_extract_stuck.log");
+                    var tasks = new List<System.Threading.Tasks.Task<bool>>();
+                    var taskHashes = new List<ulong>();
+                    var sem = new System.Threading.SemaphoreSlim(nThreads);
+                    foreach (var e in entries) {
+                        var entry = e;
+                        var tabRef = t;
+                        var tk = System.Threading.Tasks.Task.Run(async () => {
+                            await sem.WaitAsync().ConfigureAwait(false);
+                            try {
+                                using (var acc = mmf.CreateViewAccessor(0, arcLen, MemoryMappedFileAccess.Read)) {
+                                    var c = new Ctx(4 * 1024 * 1024);
+                                    c.acc = acc;
+                                    c.currentTab = 0;
+                                    bool w = ExtractAndWrite(acc, tabRef, entry, c, outputDir, oodle);
+                                    return w;
+                                }
+                            } catch (Exception ex) {
+                                return false;
+                            } finally {
+                                try { sem.Release(); } catch { }
+                            }
+                        });
+                        tasks.Add(tk);
+                        taskHashes.Add(entry.Hash);
+                    }
+                    int budgetMs = 120000;
+                    var swTab = Stopwatch.StartNew();
+                    var activeIdx = Enumerable.Range(0, tasks.Count).ToList();
+                    while (activeIdx.Count > 0) {
+                        int rem = budgetMs - (int)swTab.ElapsedMilliseconds;
+                        if (rem <= 0) break;
+                        var arr = activeIdx.Select(i => tasks[i]).ToArray();
+                        int idx;
+                        try { idx = System.Threading.Tasks.Task.WaitAny(arr, Math.Min(2000, rem)); } catch { break; }
+                        if (idx < 0) continue;
+                        int realIdx = activeIdx[idx];
+                        activeIdx.RemoveAt(idx);
+                        bool ok = false;
+                        try { ok = tasks[realIdx].Result; } catch { }
+                        if (ok) System.Threading.Interlocked.Increment(ref done);
+                        int n = System.Threading.Interlocked.Increment(ref attempted);
+                    if (progress != null && (n % 20 == 0 || n == total)) progress(n, total, tabPath);
+                    }
+                    if (activeIdx.Count > 0) {
+                        try {
+                            using (var swl = new StreamWriter(stuckLog, true)) {
+                                swl.WriteLine("[" + DateTime.Now.ToString("HH:mm:ss") + "] tab=" + Path.GetFileName(tabPath) + " stuck=" + activeIdx.Count + "/" + tasks.Count);
+                                foreach (var i in activeIdx) swl.WriteLine("  " + taskHashes[i].ToString("X16"));
+                            }
+                        } catch { }
+                    }
                 }
             }
             return done;

@@ -88,7 +88,8 @@ namespace Rage2Toolkit
             int oodleLevel = 1,
             int overrideThreads = 0,
             int overrideWriteThreads = 0,
-            int overrideBufMB = 0)
+            int overrideBufMB = 0,
+            HashSet<ulong> forceRawHashes = null)
         {
             Action<string> L = log ?? (_ => { });
             long lastEntryEnd = 0;
@@ -96,6 +97,10 @@ namespace Rage2Toolkit
             var sw = Stopwatch.StartNew();
             var st = new Stats();
             replacements = replacements ?? new Dictionary<ulong, byte[]>();
+            // Solo para el World Settings Editor: cuando se pasan hashes explicitos
+            // (rtpc/bin), preservamos raw aunque el tab tenga headers. Resto de callers
+            // pasan null y su comportamiento es identico al anterior.
+            Func<ulong, bool> isForceRaw = h => forceRawHashes != null && forceRawHashes.Contains(h);
             int threads = AutoThreads(overrideThreads, out string reason);
             st.ThreadsUsed = threads;
             st.AutoThreadsReason = reason;
@@ -162,9 +167,9 @@ namespace Rage2Toolkit
                     int firstBlockIdx = newBlocks.Count;
                     replacementsInOrder[e.Hash] = firstBlockIdx;
 
-                    if (!hasHeaders)
+                    if (!hasHeaders || isForceRaw(e.Hash))
                     {
-                        // F1C=0: write raw, sin bloques
+                        // F1C=0 OR hash marcado force-raw (.rtpc/.bin): write raw
                         currentOffset += payload.Length;
                         newE.BIdx = 0;
                         newE.CType = 0;
@@ -308,7 +313,7 @@ namespace Rage2Toolkit
 
                     if (replacements.TryGetValue(orig.Hash, out var payload))
                     {
-                        if (!hasHeaders)
+                        if (!hasHeaders || isForceRaw(orig.Hash))
                         {
                             realOffset += payload.Length;
                             outEntries[si].CSize = (uint)payload.Length;
@@ -446,9 +451,9 @@ namespace Rage2Toolkit
 
                                     if (replacements.TryGetValue(orig.Hash, out var payload))
                                     {
-                                        if (!hasHeaders)
+                                        if (!hasHeaders || isForceRaw(orig.Hash))
                                         {
-                                            // F1C=0: escribir payload crudo
+                                            // F1C=0 OR force-raw: escribir payload crudo
                                             long o = outOffsets[si];
                                             int remaining = payload.Length;
                                             int srcOff = 0;

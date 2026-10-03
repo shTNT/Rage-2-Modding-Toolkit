@@ -56,7 +56,67 @@ That is it.
 
 ---
 
-## What is new in v2.1.0
+## What is new in v2.1.5
+
+Extractor, converter and cancel fixes on top of v2.1.0. World Settings Editor, Mod Manager and Repacker are unchanged.
+
+### Extraction
+
+- **Phantom hash filter.** The browser tree used to list 103,428 entries; only 36,695 actually live in the 50 `.tab` files the game loads. The other 66,733 came from the REDxEYE merge and never resolved to a real archive slot, so `EXTRACT EVERYTHING` reported `2698 / 6121` while silently skipping the missing ones. The tree is now filtered at load against a live hash set built from the `.tab` files: only real assets are shown, and extraction counters match (`Wanted == Found`, `Missing == 0`).
+- **Filelist parser fix (ExtractorOpt + Repack).** Both were splitting the filelist by TAB; the shipped filelist uses spaces. Descriptions, extensions and RepackForm labels now populate correctly.
+- **Per-entity output folders** in both `SingleExtractForm` and `Wizard Extract`. Assets land at `output/MODELS/weapons/ark_assault/textures/...` instead of a flat dump or `_EDITABLE/TEXTURES/`.
+- **Cancel is real.** `CancellationToken` threaded through `Extractor.ExtractAll` and the conversion loops (avtx + atx1). Cancel now stops within one asset, and re-running the wizard works (the flag resets at start).
+
+### Texture conversion
+
+- **ATX1 mip chain support.** The old algorithm only accepted square mip-0 BC1/BC3 blobs. Real RAGE 2 `.atx1` are BC1/BC3 mip chains (mip 0+1, or 0+1+2), non-square, or cube maps. New `TryGuessAtx1Format` searches (W, H, mips, blockSize) matching the byte size, and writes a correct DDS header with `MIPMAPCOUNT` + `MIPMAP` caps. **4,682 previously failed conversions now succeed.**
+- **ATX1 in Wizard Extract.** `EXTRACT EVERYTHING` used to leave `.atx1` untouched (they surfaced as `.unknown` before the filelist fix). They now convert in parallel (`MaxDegreeOfParallelism = 8`) alongside `.avtx`.
+- **sRGB fix in `AssetConverters`.** Was using `-srgbi -srgbo -f R8G8B8A8_UNORM_SRGB`, which double-applies the gamma. Now uses `-srgbi -f R8G8B8A8_UNORM_SRGB` (case D of the V2.0.1 addendum). Diffuse / albedo PNG output is no longer washed out.
+- **Conversion preferences gear in Wizard Extract** - same gear as `SingleExtractForm`, only in the extract wizard. Modding and Repacker headers are unaffected.
+
+### Prompt + GUI
+
+- **Dynamic format in the extract prompt.** The `Extract selection` dialog now reflects the gear: `N texture(s) -> DDS editable` / `PNG editable`, `N audio(s) -> WAV editable / OGG editable / kept as-is`.
+- **SingleExtractForm layout fix.** The tree was computed with `FOOTER_H = 76` while the footer was 110 px tall (`76 + 34`). The last 28 px of the tree were hidden behind the footer at any window size, cutting off the last alphabetical nodes (`UI`, `VIDEOS`). Constant and footer height are now consistent.
+
+### Verified
+
+- Single extract, 10,058 files: **10,013 `.dds`, 0 `.atx1` residual, 0 conversion failures**.
+- Wizard extract: **39,673 files / 0 missing / 2 m 41 s**, avtx `5,153 / 5,153`.
+- Tree: **36,695 hashes shown**, 66,733 phantom entries filtered out.
+- Baseline 46/46 intact after every test.
+
+---
+## Release history
+
+<details>
+<summary><b>v2.1.1</b> (2026-09-30) - Extract-all crash fix + Editor multi-file session</summary>
+
+Hotfix on top of v2.1.0.
+
+### Fixed
+
+- **Extract-all crash.** `ShowStats()` accessed `stepPanels[3]` before it existed. Extraction and classify already worked; the "Failed" dialog was a false positive on the summary. The wizard now advances to Step 4 with the full summary.
+- **Wizard Extract freeze.** `BuildStep4()` was not called and `GotoStep(3)` was missing at the end.
+- **Home layout.** Bottom buttons rearranged in a symmetric 2x2 grid.
+- **World Settings Editor.** `WORK\` folder cleared on open (one-shot per session).
+
+### Added
+
+- **World Settings Editor multi-file session.** In-memory cache of changes per `(fileHash, ValueOffset)`. Edit N nodes and M files, single SAVE produces one `.zip` with all affected `.rtpc`.
+- **Wizard Extract.** Removed the redundant "Extract all" button and the "Pick what interests you" label.
+
+### Internal
+
+- `Process.Start` in `using` blocks (6 sites).
+- `TrimLogBox` with a 5000-line cap.
+- Diagnostic dumps in `StartExtract` (removable in a future release).
+
+</details>
+
+
+<details>
+<summary><b>v2.1.0</b> (2026-09-29) - World Settings Editor + wizard redesign</summary>
 
 The toolkit now includes a native **World Settings Editor** that edits game settings previously untouched publicly. Save produces an installable `.zip` in one click.
 
@@ -97,8 +157,7 @@ A C# editor that opens from `Wizard Modding` -> `WORLD SETTINGS EDITOR`. Edits 7
 - 6 new phases (20-25): `settings-bundled`, `editor-features-strings`, `modding-wizard-strings`, `extract-wizard-strings`, `files-array-no-settlements`, `cleanup`.
 - Harness paths fixed: was pointing to `v2.0.5-build`, now `v2.1.0-build`.
 
----
-## Release history
+</details>
 
 <details>
 <summary><b>v2.0.5</b> (2026-09-28) - Full Mod System + Mod Manager + DDSC fix</summary>

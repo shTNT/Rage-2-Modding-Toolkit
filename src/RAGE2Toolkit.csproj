@@ -11,10 +11,10 @@
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <EnableCompressionInSingleFile>false</EnableCompressionInSingleFile>
     <DebugType>none</DebugType>
-    <Version>2.1.0</Version>
-    <AssemblyVersion>2.1.0</AssemblyVersion>
-    <FileVersion>2.1.0</FileVersion>
-    <InformationalVersion>2.1.0</InformationalVersion>
+    <Version>2.1.5</Version>
+    <AssemblyVersion>2.1.5</AssemblyVersion>
+    <FileVersion>2.1.5</FileVersion>
+    <InformationalVersion>2.1.5</InformationalVersion>
         <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>fragoneta.ico</ApplicationIcon>
     <Nullable>disable</Nullable>
@@ -53,9 +53,14 @@
   <ItemGroup>
   </ItemGroup>
   <ItemGroup>
+
     <Compile Include="SettingsEditorCore.cs" />
+
     <Compile Include="SettingsEditorForm.cs" />
+    <Compile Include="SettingsIniEditorForm.cs" />
+
   </ItemGroup>
+
 </Project>
 
 

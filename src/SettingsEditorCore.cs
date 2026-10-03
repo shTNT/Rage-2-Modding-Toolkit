@@ -81,6 +81,32 @@ namespace Rage2Toolkit
             { 0x9A2DB97E, "proximity_limit" }, { 0x7432C7A9, "default_aabb" }
         };
 
+        // =========================================================
+        // v1 spawn_defs hashes (spawn_*_defs.bin, RTPC version 1)
+        // =========================================================
+        public static readonly Dictionary<uint, string> WellKnownV1 = new Dictionary<uint, string>
+        {
+            { 0x16AFB02F, "category" },
+            { 0x399ED0ED, "entity" },
+            { 0x54697E8F, "tags" },
+            { 0xF71C2A21, "desc" },
+            { 0xBCD57544, "weapon_class" },
+            { 0xEDE80775, "select" },
+            { 0x8A41D33D, "max_level" },
+            { 0x87CB078B, "min_level" },
+            { 0x2E51B1A4, "unknown_bool" },
+            { 0x1DA84444, "aabb_max" },
+            { 0x26CFBDD1, "aabb_min" },
+        };
+
+        public static string V1NameOf(uint h)
+        {
+            string n;
+            if (WellKnownV1.TryGetValue(h, out n)) return n;
+            if (h == 0) return "zero";
+            return "unk_" + h.ToString("X8");
+        }
+
         public static string NameOf(uint h)
         {
             string n;
@@ -137,6 +163,31 @@ namespace Rage2Toolkit
             return p;
         }
 
+        // v1: same 9-byte layout but uses V1NameOf for prop hash -> name
+        static RTPCProp ReadPropV1(byte[] data, int off)
+        {
+            if (off + 9 > data.Length) return null;
+            uint hash = U32(data, off);
+            uint raw = U32(data, off + 4);
+            byte type = data[off + 8];
+            var p = new RTPCProp { Hash = hash, Name = V1NameOf(hash), Type = type, Offset = off, ValueOffset = off + 4 };
+            try
+            {
+                switch (type)
+                {
+                    case 1: p.Value = (int)raw; break;
+                    case 2: p.Value = (float)Math.Round((double)BitConverter.ToSingle(data, off + 4), 6); break;
+                    case 3: p.Value = CString(data, raw); break;
+                    case 5:
+                        if (raw + 12 <= data.Length)
+                            p.Value = new float[] { BitConverter.ToSingle(data, (int)raw), BitConverter.ToSingle(data, (int)raw + 4), BitConverter.ToSingle(data, (int)raw + 8) };
+                        break;
+                }
+            }
+            catch { }
+            return p;
+        }
+
         static int Align4(int x) { return x + ((4 - (x % 4)) % 4); }
 
         static RTPCNode ReadNode(byte[] data, ref int pos, int depth)
@@ -168,10 +219,69 @@ namespace Rage2Toolkit
         public static RTPCFile Parse(string path)
         {
             byte[] data = File.ReadAllBytes(path);
+            if (data.Length < 8) throw new InvalidDataException("RTPC too small");
             uint ver = U32(data, 4);
+            if (ver == 1) return ParseV1(data, path);
             int pos = 8;
             var root = ReadNode(data, ref pos, 0);
             return new RTPCFile { FilePath = path, Version = ver, Root = root };
+        }
+
+        // =========================================================
+        // RTPC v1 (spawn_*_defs.bin) - linear entry table.
+        //   0x00 magic "RTPC"
+        //   0x04 version u32 (=1)
+        //   0x08 type_hash u32
+        //   0x0C header_size u32 (=20)
+        //   0x10 unknown u32
+        //   0x14 root node header (12B)
+        //   0x20 container child (12B), cc = N entries
+        //   0x2C N * 12B entry headers (each with own doff to props)
+        // =========================================================
+        static RTPCFile ParseV1(byte[] data, string path)
+        {
+            if (data.Length < 0x2C) throw new InvalidDataException("RTPC v1 too small");
+            uint rootHash = U32(data, 0x14);
+            var root = new RTPCNode { Hash = rootHash, Name = "spawn_system" };
+
+            uint cHash = U32(data, 0x20);
+            ushort cEntryCount = U16(data, 0x20 + 10);
+            var container = new RTPCNode { Hash = cHash, Name = "defs" };
+            root.Children.Add(container);
+
+            int entryBase = 0x2C;
+            for (int i = 0; i < cEntryCount; i++)
+            {
+                int eoff = entryBase + i * 12;
+                if (eoff + 12 > data.Length) break;
+                uint nh = U32(data, eoff);
+                uint doff = U32(data, eoff + 4);
+                ushort pc = U16(data, eoff + 8);
+
+                var entry = new RTPCNode { Hash = nh, Name = "entry_" + nh.ToString("X8") };
+
+                int p = (int)doff;
+                for (int j = 0; j < pc; j++)
+                {
+                    if (p + 9 > data.Length) break;
+                    var pr = ReadPropV1(data, p);
+                    if (pr != null) entry.Props.Add(pr);
+                    p += 9;
+                }
+
+                foreach (var pr in entry.Props)
+                {
+                    if (pr.Hash == 0xF71C2A21 && pr.Value is string s && !string.IsNullOrEmpty(s))
+                    {
+                        entry.Name = s;
+                        break;
+                    }
+                }
+
+                container.Children.Add(entry);
+            }
+
+            return new RTPCFile { FilePath = path, Version = 1, Root = root };
         }
     }
 
@@ -218,6 +328,19 @@ namespace Rage2Toolkit
             A("spawn_system", "Spawn System", "I", "Root container of the entire spawn pipeline. Child nodes are the different subsystems (Budget, Definitions, Streamers...).");
             A("budget", "Spawn Budget", "I", "GLOBAL BUDGET. The engine has a fixed pool of resources to place entities around the player. Each category below (Civilians, Vehicles, Combatants, Animals...) competes for a slice of this budget. Raising a category's \"Amount in World\" gives it more of the pool; lowering it gives less.");
             A("props", "Properties", "I", "Internal property block for the parent node.");
+            A("defs", "Definitions", "I", "List of prefab definitions in this file. Each entry is a spawn candidate with its own properties.");
+            // ===== v1 spawn_defs hashes =====
+            A("category",     "Category",     "I", "Prefab category (Character|X, vehicle|Y). Read-only.");
+            A("path_ee",      "Entity Path",  "I", "Path to the .ee entity file. Read-only.");
+            A("tags",         "Tags",         "I", "Comma-separated tags. Read-only.");
+            A("name",         "Prefab Name",  "I", "Internal prefab identifier. Read-only.");
+            A("weapon_class", "Weapon Class", "I", "Weapon class string (weapon slot/type for this combatant). Read-only.");
+            A("weight",       "Spawn Weight", "P", "Relative weight in the spawn pool. Vanilla: 50 for cars/convoy_leaders, 100 for bikes. Higher = more likely to spawn. Unconfirmed as spawn weight (could be a priority tier).", "Frequency: 114 entries at 50, 5 entries at 100 in vanilla spawn_vehicle_defs.");
+            A("float_a",      "Tier Float A", "E", "Unknown float. Vanilla 0.6-0.7 for assault combatants. Might be health / damage / spawn probability multiplier.", null);
+            A("float_b",      "Tier Float B", "E", "Unknown float. Vanilla 0.3-0.4 for helmet variants. Might be armor / spawn probability for variants.", null);
+            A("is_heavy",     "Is Heavy",     "P", "Boolean flag. 1 = heavy enemy (crusher, minigun, MBTV). 0 or absent = normal.");
+            A("vec3_a",       "Vector A",     "I", "3-float vector. Read-only. Likely spawn position or size bounds.");
+            A("vec3_b",       "Vector B",     "I", "3-float vector. Read-only.");
             A("type_infos", "Type Infos", "I", "Definitions of each vehicle / creature type (size, physics, AI template).");
             A("civilians", "Civilians", "C", "Regular NPC pedestrians that walk around cities and roads. Passive. Their presence is what makes the open world feel alive.");
             A("animals", "Animals", "C", "Wildlife and creatures (mutants, dogs, wild boars). Includes hostile variants.");
@@ -352,6 +475,34 @@ namespace Rage2Toolkit
             A("priority", "Priority", "C", "Generic priority ordering.");
             A("increment", "Increment", "C", "Increment step for progression.");
             A("enable_event", "Enable Event", "C", "Event to trigger when enabled.");
+
+            // ===== AMB (Asset Memory Budgets) =====
+            A("root", "Root", "C", "Asset memory budgets - top of file.");
+            A("resource_type", "Resource Type", "C", "Category of the resource (Animation, Model, Physic, Texture, Unknown Damage).");
+            A("asset_type", "Asset Type", "C", "Asset extension group (ddsc, deformc, pfxc, dyn_obcc, ...).");
+            A("Animation (category)", "Animation", "C", "Asset memory category: animation data.");
+            A("Model (category)", "Model", "C", "Asset memory category: model / mesh data.");
+            A("Physic (category)", "Physic", "C", "Asset memory category: physics data.");
+            A("Texture (category)", "Texture", "C", "Asset memory category: texture data.");
+            A("Effect (category)", "Effect", "C", "Asset memory category: effect / particle data.");
+            A("Unknown (category)", "Unknown Damage", "C", "Asset memory fallback category for unmapped resources.");
+            A("categories (AMB subtree)", "Categories", "C", "Subtree: 5 resource categories.");
+            A("budgets (AMB subtree)", "Budgets", "C", "Subtree: 12 ordinal memory budget slots (indexed 0..11 by the engine).");
+            A("file_types (AMB subtree)", "File Types", "C", "Subtree: file extension groups per budget slot.");
+            A("memory_max (KB)", "Memory Max (KB)", "P", "Per-category MAX memory in KB. Inferred name (wordlist + ratio 460/512 = 89.8%). Test in-game before aggressive increases.");
+            A("soft_limit (KB)", "Soft Limit (KB)", "P", "Per-category SOFT limit in KB. Maintains ~90% of memory_max in vanilla. Inferred name.");
+            A("Slot_00", "Slot_00 (ordinal 0)", "P", "Ordinal memory budget slot 0 of 12. Structurally identical to the others. Slot role NOT documented in the file. Test one slot at a time before touching all 12.");
+            A("Slot_01", "Slot_01 (ordinal 1)", "P", "Ordinal memory budget slot 1 of 12. See Slot_00 description.");
+            A("Slot_02", "Slot_02 (ordinal 2)", "P", "Ordinal memory budget slot 2 of 12.");
+            A("Slot_03", "Slot_03 (ordinal 3)", "P", "Ordinal memory budget slot 3 of 12.");
+            A("Slot_04", "Slot_04 (ordinal 4)", "P", "Ordinal memory budget slot 4 of 12.");
+            A("Slot_05", "Slot_05 (ordinal 5)", "P", "Ordinal memory budget slot 5 of 12.");
+            A("Slot_06", "Slot_06 (ordinal 6)", "P", "Ordinal memory budget slot 6 of 12.");
+            A("Slot_07", "Slot_07 (ordinal 7)", "P", "Ordinal memory budget slot 7 of 12.");
+            A("Slot_08", "Slot_08 (ordinal 8)", "P", "Ordinal memory budget slot 8 of 12.");
+            A("Slot_09", "Slot_09 (ordinal 9)", "P", "Ordinal memory budget slot 9 of 12.");
+            A("Slot_10", "Slot_10 (ordinal 10)", "P", "Ordinal memory budget slot 10 of 12.");
+            A("Slot_11", "Slot_11 (ordinal 11)", "P", "Ordinal memory budget slot 11 of 12.");
         }
 
         public static PropInfo GetInfo(string rawName)
