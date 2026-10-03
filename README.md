@@ -148,7 +148,7 @@ A C# editor that opens from `Wizard Modding` -> `WORLD SETTINGS EDITOR`. Edits 7
 
 ### Hash database
 
-- 445 new hashes resolved for the settings editor (RED_EYE kv table + targeted cracking).
+- 445 new hashes resolved for the settings editor (kv table + targeted cracking).
 - Editor coverage: 445 / 989 = 45%. Remaining 544 are engine-internal constants with no string in any accessible source.
 - Full structural classification (Hungarian prefix + camelCase + engine suffix).
 
@@ -494,14 +494,14 @@ The hash-to-path mapping is published at [`data/filelist.txt`](data/filelist.txt
 | Metric | Value |
 |--------|-------|
 | Entries shipped | **103,428** |
-| Sourced from | REDxEYE hash extractor (ApexPredator) |
-| Our own resolved hashes | 36,695 (pre-REDxEYE, kept under `data/sources/filelist_we_built.txt`) |
+| Sourced from | REDxEYE hash extractor |
+| Our own resolved hashes | 36,695 (kept under `data/sources/filelist_we_built.txt`) |
 | Gameplay corpus | 39,519 hashes (46 `.arc` files, initial + supplemental) |
 | Our corpus coverage | **92.85%** (36,695 / 39,519) |
 | Remaining corpus orphans | 2,824 (engine-internal constants, no string in any accessible source) |
 | Localization excluded | 45,739 hashes (separate tree) |
 
-The **103,428 entries** shipped in `filelist.txt` cover the REDxEYE universe (full asset catalog including DLCs, regions, localization paths). The **92.85%** figure refers specifically to our gameplay corpus - the 39,519 hashes actually present in the 46 `.arc` archives the toolkit extracts. Both figures are correct and describe different things.
+The **103,428 entries** shipped in `filelist.txt` cover the full asset catalog including DLCs, regions and localization paths. The **92.85%** figure refers specifically to our gameplay corpus - the 39,519 hashes actually present in the 46 `.arc` archives the toolkit extracts. Both figures are correct and describe different things.
 
 **Format:** `<HEX16>` + TAB + `<path>` · UTF-8 no BOM · LF line endings.
 
@@ -562,7 +562,7 @@ Built on top of other open-source projects:
 | [ApexToolset](https://github.com/PredatorCZ/ApexToolset) | `ddscConvert` + `R2SmallArchive` |
 | [DirectXTex](https://github.com/microsoft/DirectXTex) | `texconv` |
 
-Special thanks to the RAGE 2 modding community. And to **REDxEYE**, author of [ApexPredator](https://github.com/REDxEYE/APEX-PREDATOR), for his hash extractor - which produced the 103,428-path database that ships with this toolkit and made the settings editor possible - for his file format research on the Avalanche Apex engine, and for his patience on the modding community Discord.
+Special thanks to the RAGE 2 modding community, and to **REDxEYE** for the hash extractor that produced the filelist shipped with this toolkit.
 
 ---
 
