@@ -62,7 +62,7 @@ Extractor, converter and cancel fixes on top of v2.1.0. World Settings Editor, M
 
 ### Extraction
 
-- **Phantom hash filter.** The browser tree used to list 103,428 entries; only 36,695 actually live in the 50 `.tab` files the game loads. The other 66,733 came from the REDxEYE merge and never resolved to a real archive slot, so `EXTRACT EVERYTHING` reported `2698 / 6121` while silently skipping the missing ones. The tree is now filtered at load against a live hash set built from the `.tab` files: only real assets are shown, and extraction counters match (`Wanted == Found`, `Missing == 0`).
+- **Phantom hash filter.** The browser tree used to list 103,428 entries; only 36,695 actually live in the 50 `.tab` files the game loads. The tree is now filtered at load against a live hash set built from the `.tab` files: only real assets are shown, and extraction counters match (`Wanted == Found`, `Missing == 0`).
 - **Filelist parser fix (ExtractorOpt + Repack).** Both were splitting the filelist by TAB; the shipped filelist uses spaces. Descriptions, extensions and RepackForm labels now populate correctly.
 - **Per-entity output folders** in both `SingleExtractForm` and `Wizard Extract`. Assets land at `output/MODELS/weapons/ark_assault/textures/...` instead of a flat dump or `_EDITABLE/TEXTURES/`.
 - **Cancel is real.** `CancellationToken` threaded through `Extractor.ExtractAll` and the conversion loops (avtx + atx1). Cancel now stops within one asset, and re-running the wizard works (the flag resets at start).
